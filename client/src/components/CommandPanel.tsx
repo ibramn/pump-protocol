@@ -160,7 +160,8 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
             borderRadius: '4px',
             fontSize: '0.9rem'
           }}>
-            <strong>⚠️ Important:</strong> If pump shows "NOT PROGRAMMED", send a <strong>Price Update</strong> first, then RESET, then AUTHORIZE.
+            <strong>⚠️ Important:</strong> AUTHORIZE only works when pump is in <strong>RESET</strong> state (Status 1). 
+            Sequence: <strong>RESET</strong> → Wait for Status 1 → <strong>AUTHORIZE</strong> → Wait for Status 2.
           </div>
           <div className="button-group">
             <button
