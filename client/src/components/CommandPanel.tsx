@@ -82,17 +82,8 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
   };
 
   const handleBasicCommand = (command: PumpCommand) => {
-    // For AUTHORIZE, include allowed nozzles if specified
-    if (command === PumpCommand.AUTHORIZE && nozzles.trim()) {
-      const nozzleArray = nozzles.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n > 0);
-      if (nozzleArray.length > 0) {
-        sendCommand('CD1', { 
-          command,
-          allowedNozzles: nozzleArray
-        });
-        return;
-      }
-    }
+    // Send simple CD1 command (no automatic CD2 inclusion)
+    // If allowed nozzles are needed, send CD2 separately first
     sendCommand('CD1', { command });
   };
 

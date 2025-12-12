@@ -61,25 +61,12 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
       // Encode transaction
       const transaction = encodeCommandTransaction(transactionData);
 
-      // For AUTHORIZE command, we may need to include allowed nozzles
-      // Check if this is an AUTHORIZE command and if we should add CD2
+      // For AUTHORIZE command, send CD1 only (CD2 should be sent separately if needed)
+      // Based on sniffer logs, the working AUTHORIZE is just CD1 without CD2
       const transactions = [transaction];
       
-      // If AUTHORIZE command and command data includes allowedNozzles, add CD2 transaction
-      if (transactionData.type === 1 && transactionData.data.command === 0x06) {
-        // AUTHORIZE command - check if allowed nozzles are specified
-        const authorizeData = transactionData.data as any;
-        if (authorizeData.allowedNozzles && Array.isArray(authorizeData.allowedNozzles) && authorizeData.allowedNozzles.length > 0) {
-          // Add CD2 transaction for allowed nozzles
-          const nozzleTransaction = encodeCommandTransaction({
-            type: 2, // CD2_ALLOWED_NOZZLE_NUMBERS
-            data: {
-              nozzles: authorizeData.allowedNozzles
-            }
-          });
-          transactions.push(nozzleTransaction);
-        }
-      }
+      // NOTE: CD2 (allowed nozzles) should be sent as a separate command before AUTHORIZE
+      // if needed. The working implementation sends AUTHORIZE as a simple CD1 command.
 
       // Determine control byte based on command type
       // From sniffer logs: RESET uses CTRL=0x39, AUTHORIZE uses CTRL=0x3C
