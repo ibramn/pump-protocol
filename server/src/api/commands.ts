@@ -61,8 +61,28 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
       // Encode transaction
       const transaction = encodeCommandTransaction(transactionData);
 
+      // For AUTHORIZE command, we may need to include allowed nozzles
+      // Check if this is an AUTHORIZE command and if we should add CD2
+      const transactions = [transaction];
+      
+      // If AUTHORIZE command and command data includes allowedNozzles, add CD2 transaction
+      if (transactionData.type === 1 && transactionData.data.command === 0x06) {
+        // AUTHORIZE command - check if allowed nozzles are specified
+        const authorizeData = transactionData.data as any;
+        if (authorizeData.allowedNozzles && Array.isArray(authorizeData.allowedNozzles) && authorizeData.allowedNozzles.length > 0) {
+          // Add CD2 transaction for allowed nozzles
+          const nozzleTransaction = encodeCommandTransaction({
+            type: 2, // CD2_ALLOWED_NOZZLE_NUMBERS
+            data: {
+              nozzles: authorizeData.allowedNozzles
+            }
+          });
+          transactions.push(nozzleTransaction);
+        }
+      }
+
       // Build frame (control byte defaults to 0x00 if not provided)
-      const frame = buildFrame(address, control || 0x00, [transaction]);
+      const frame = buildFrame(address, control || 0x00, transactions);
 
       // Send frame
       await serialHandler.sendFrame(frame);
@@ -186,6 +206,19 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
 function parseCommandRequest(command: any): CommandTransactionData {
   switch (command.type) {
     case 'CD1':
+      // For CD1, check if allowedNozzles are included (for AUTHORIZE command)
+      const cmdData = command.data;
+      if (cmdData.allowedNozzles && Array.isArray(cmdData.allowedNozzles) && cmdData.allowedNozzles.length > 0) {
+        // Return a special structure that includes both command and allowed nozzles
+        // We'll handle this in the send handler
+        return {
+          type: 1, // CD1_COMMAND
+          data: {
+            command: cmdData.command,
+            allowedNozzles: cmdData.allowedNozzles
+          } as any
+        };
+      }
       return CommandEncoders.commandToPump(command.data.command);
     
     case 'CD2':

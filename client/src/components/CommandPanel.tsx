@@ -82,6 +82,17 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
   };
 
   const handleBasicCommand = (command: PumpCommand) => {
+    // For AUTHORIZE, include allowed nozzles if specified
+    if (command === PumpCommand.AUTHORIZE && nozzles.trim()) {
+      const nozzleArray = nozzles.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+      if (nozzleArray.length > 0) {
+        sendCommand('CD1', { 
+          command,
+          allowedNozzles: nozzleArray
+        });
+        return;
+      }
+    }
     sendCommand('CD1', { command });
   };
 
@@ -162,6 +173,7 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
               className="button"
               onClick={() => handleBasicCommand(PumpCommand.RESET)}
               disabled={loading}
+              title="Send RESET before AUTHORIZE to prepare the pump"
             >
               Reset
             </button>
