@@ -19,7 +19,7 @@ interface LogPanelProps {
 
 export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange }: LogPanelProps) {
   const [autoScroll, setAutoScroll] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'raw' | 'frame' | 'decoded' | 'sent' | 'error'>('all');
+  const [filter, setFilter] = useState<'all' | 'raw' | 'frame' | 'decoded' | 'sent' | 'error' | 'hex'>('all');
   const [internalPaused, setInternalPaused] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
   
@@ -43,6 +43,7 @@ export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange 
 
   const filteredLogs = logs.filter(log => {
     if (filter === 'all') return true;
+    if (filter === 'hex') return true; // Show all logs in hex view, but display them differently
     return log.type === filter;
   });
 
@@ -112,6 +113,12 @@ export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange 
             >
               Errors
             </button>
+            <button
+              className={`filter-button ${filter === 'hex' ? 'active' : ''}`}
+              onClick={() => setFilter('hex')}
+            >
+              Hex Only
+            </button>
           </div>
           <div className="log-actions">
             <button
@@ -149,6 +156,20 @@ export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange 
       <div className="log-content">
         {filteredLogs.length === 0 ? (
           <div className="log-empty">No logs to display</div>
+        ) : filter === 'hex' ? (
+          // Hex-only view: show just timestamp and hex data, no decoding
+          filteredLogs.map((log) => (
+            <div key={log.id} className="log-entry-hex">
+              <div className="log-hex-header">
+                <span className="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                {log.hex ? (
+                  <code className="log-hex-only">{log.hex}</code>
+                ) : (
+                  <span className="log-no-hex">No hex data</span>
+                )}
+              </div>
+            </div>
+          ))
         ) : (
           filteredLogs.map((log) => (
             <div key={log.id} className={`log-entry ${getLogColor(log.type)}`}>

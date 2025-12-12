@@ -335,6 +335,12 @@ export class SerialHandler extends EventEmitter {
     // This handles frames with multiple transactions properly
     const parsedFrame = parseFrame(frame);
     if (parsedFrame && parsedFrame.transactions.length > 0) {
+      // Log if this is a multi-transaction frame
+      if (parsedFrame.transactions.length > 1) {
+        const txTypes = parsedFrame.transactions.map(t => `DC${t.trans}`).join(' + ');
+        console.log(`[MULTI-TX] Frame contains ${parsedFrame.transactions.length} transactions: ${txTypes}`);
+      }
+      
       // Decode all transactions in the frame and emit them together
       // Use a single timestamp for all transactions in the same frame
       const timestamp = new Date();

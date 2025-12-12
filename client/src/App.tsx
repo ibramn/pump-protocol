@@ -97,26 +97,49 @@ function App() {
             }
           });
           
-          // The pump alternates between status 0 (NOT PROGRAMMED) and 5 (FILLING COMPLETED)
-          // when idle. This appears to be normal pump behavior - it's checking if controller is alive.
+          // IMPORTANT: The pump alternates between status 0 (NOT PROGRAMMED) and 5 (FILLING COMPLETED)
+          // when idle. This is NORMAL pump behavior - it's a keepalive/heartbeat mechanism.
           // 
-          // Strategy: Prefer status 5 (FILLING COMPLETED) when both appear, as it's more informative
-          // (includes price/nozzle data). Only show status 0 if it's consistently the only status.
+          // The pump sends:
+          // - Status 0: Simple 9-byte frame (PUMP NOT PROGRAMMED)
+          // - Status 5: 15-byte frame with DC1 + DC3 (FILLING COMPLETED, includes price/nozzle data)
+          //
+          // This happens periodically (every few seconds) even when the pump is idle and nothing is happening.
+          // It's the pump's way of:
+          // 1. Keeping the communication line active
+          // 2. Checking if the controller is still alive
+          // 3. Providing periodic state updates
+          //
+          // Strategy: When both status 0 and 5 appear (idle state), ALWAYS prefer status 5 because:
+          // - It's more informative (includes price/nozzle data)
+          // - It represents the pump's actual ready state (completed previous operation)
+          // - Status 0 is just a "not programmed" state that alternates with 5 during idle
           
           // Check if status 5 appears in recent history
           const hasStatus5 = recentStatuses.some(e => e.status === 5);
           const hasStatus0 = recentStatuses.some(e => e.status === 0);
           
           if (hasStatus5 && hasStatus0) {
-            // Both statuses appear - prefer status 5 (more informative, includes price)
+            // Both statuses appear - this is idle keepalive behavior
+            // ALWAYS prefer status 5 (more informative, represents actual ready state)
+            // Ignore status 0 completely when status 5 is also present
             newState.status = 5;
             newState.lastStatusUpdateTime = now;
-          } else if (prev?.status !== mostCommonStatus && maxCount >= 2) {
-            // Single status appears consistently - use it
+          } else if (hasStatus5 && !hasStatus0) {
+            // Only status 5 - use it
+            newState.status = 5;
+            newState.lastStatusUpdateTime = now;
+          } else if (hasStatus0 && !hasStatus5 && maxCount >= 3) {
+            // Only status 0 appears consistently (3+ times) - pump is truly not programmed
+            // Only update if it's been consistent for a while
+            newState.status = 0;
+            newState.lastStatusUpdateTime = now;
+          } else if (prev?.status !== mostCommonStatus && maxCount >= 3) {
+            // Other status appears consistently - use it
             newState.status = mostCommonStatus;
             newState.lastStatusUpdateTime = now;
           } else {
-            // Keep current status
+            // Keep current status (don't switch on single status 0 when we've seen status 5 before)
             newState.status = prev?.status ?? newStatus;
           }
           break;

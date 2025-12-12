@@ -102,7 +102,7 @@ serialHandler.on('message', (message) => {
   };
   const txName = txNames[message.transaction.type] || `DC${message.transaction.type}`;
   
-  // For status messages, track status changes (but don't warn - this is normal pump behavior)
+  // For status messages, track status changes
   if (message.transaction.type === 1) {
     const status = message.transaction.data.status;
     const now = Date.now();
@@ -111,10 +111,19 @@ serialHandler.on('message', (message) => {
         lastStatus.address === message.address && 
         lastStatus.status !== status) {
       const timeSinceLastStatus = now - lastStatus.timestamp;
-      // This is normal - pump alternates between status 0 and 5 when idle
-      // Status 0 = PUMP NOT PROGRAMMED (9-byte frame)
-      // Status 5 = FILLING COMPLETED (15-byte frame with DC1 + DC3)
-      // The pump is just reporting its current state
+      
+      // NOTE: The pump alternates between status 0 and 5 when idle - this is NORMAL behavior.
+      // It's a keepalive/heartbeat mechanism. The pump sends:
+      // - Status 0 (PUMP NOT PROGRAMMED): Simple 9-byte frame
+      // - Status 5 (FILLING COMPLETED): 15-byte frame with DC1 + DC3 (includes price/nozzle)
+      // 
+      // This happens every few seconds even when idle. It's the pump's way of:
+      // 1. Keeping the communication line active
+      // 2. Checking if the controller is still alive
+      // 3. Providing periodic state updates
+      //
+      // The frontend debouncing logic handles this by preferring status 5 when both appear.
+      // No warning needed - this is expected behavior.
     }
     
     lastStatus = {
