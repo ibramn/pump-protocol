@@ -137,6 +137,10 @@ export class SerialHandler extends EventEmitter {
    * Handle incoming data from serial port
    */
   private handleData(data: Buffer): void {
+    // Log raw incoming bytes for debugging
+    const rawHex = Array.from(data).map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    console.log(`[RAW INCOMING] ${data.length} bytes:`, rawHex);
+    
     // Add new bytes to buffer
     const newBytes = Array.from(data);
     this.byteBuffer.push(...newBytes);
@@ -146,6 +150,8 @@ export class SerialHandler extends EventEmitter {
 
     // Process each complete frame
     for (const frame of frames) {
+      const frameHex = frame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+      console.log(`[FRAME EXTRACTED] ${frame.length} bytes:`, frameHex);
       this.processFrame(frame);
     }
 

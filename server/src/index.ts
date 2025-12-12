@@ -82,14 +82,14 @@ serialHandler.on('message', (message) => {
     };
   }
   
-  // Only log every 10th message to reduce console spam
-  if (Math.random() < 0.1) {
-    console.log(`[${txName}]`, {
-      address: `0x${message.address.toString(16)}`,
-      data: message.transaction.data,
-      frameLength: message.rawFrame.length
-    });
-  }
+  // Log all messages with hex dump for debugging
+  const frameHex = message.rawFrame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  console.log(`[${txName}]`, {
+    address: `0x${message.address.toString(16)}`,
+    data: message.transaction.data,
+    frameLength: message.rawFrame.length,
+    frameHex: frameHex
+  });
   
   wsHandler.broadcastPumpMessage(message);
 });
@@ -97,17 +97,17 @@ serialHandler.on('message', (message) => {
 serialHandler.on('frameError', (error) => {
   // Log frame errors but don't treat them as fatal
   // Many frames may not parse correctly but still contain valid data
-  const frameHex = error.frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  const frameHex = error.frame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   console.warn('Frame parsing warning:', error.error, 'Frame length:', error.frame.length, 'Hex:', frameHex);
 });
 
 serialHandler.on('unknownTransaction', (data) => {
-  const frameHex = data.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  const frameHex = data.rawFrame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   console.log('Unknown transaction:', {
     address: `0x${data.address.toString(16)}`,
     transaction: data.transaction.trans,
     length: data.transaction.lng,
-    data: data.transaction.data.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '),
+    data: data.transaction.data.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' '),
     frameHex
   });
 });
@@ -131,7 +131,7 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces by default
 
 server.listen(PORT, HOST, async () => {
