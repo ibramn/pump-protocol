@@ -168,31 +168,38 @@ export class SerialHandler extends EventEmitter {
     }
 
     // First, try pattern-based decoding (like Python decoder)
-    let decoded = tryDecodeFrameByPattern(frame);
+    // This returns an array since frames can have multiple transactions
+    const patternDecoded = tryDecodeFrameByPattern(frame);
     
-    if (decoded) {
-      // Pattern match succeeded
-      const message: DecodedMessage = {
-        address,
-        timestamp: new Date(),
-        transaction: decoded,
-        rawFrame: frame
-      };
-      this.emit('message', message);
+    if (patternDecoded.length > 0) {
+      // Pattern match succeeded - emit all decoded transactions
+      for (const decoded of patternDecoded) {
+        const message: DecodedMessage = {
+          address,
+          timestamp: new Date(),
+          transaction: decoded,
+          rawFrame: frame
+        };
+        this.emit('message', message);
+      }
       return;
     }
 
     // If pattern matching fails, try protocol-based parsing
+    // This handles frames with multiple transactions properly
     const parsedFrame = parseFrame(frame);
     if (parsedFrame && parsedFrame.transactions.length > 0) {
-      // Decode all transactions in the frame
+      // Decode all transactions in the frame and emit them together
+      // Use a single timestamp for all transactions in the same frame
+      const timestamp = new Date();
+      
       for (const transaction of parsedFrame.transactions) {
         const txDecoded = decodeResponseTransaction(transaction);
         
         if (txDecoded) {
           const message: DecodedMessage = {
             address: parsedFrame.address,
-            timestamp: new Date(),
+            timestamp,
             transaction: txDecoded,
             rawFrame: frame
           };

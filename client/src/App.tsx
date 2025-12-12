@@ -40,14 +40,15 @@ function App() {
         lastUpdate: new Date(data.timestamp)
       };
 
+      // Process transactions in order - later transactions in the same frame override earlier ones
+      // This handles frames with multiple transactions (e.g., DC1 + DC3 together)
       switch (data.transaction.type) {
         case 1: // DC1_PUMP_STATUS
-          // Only update status if it's actually a status frame
-          // Avoid rapid switching by checking if status actually changed
+          // Update status - but only if it's actually different to avoid flickering
           const newStatus = data.transaction.data.status;
+          // Only update if status actually changed (not just a duplicate message)
           if (prev?.status !== newStatus) {
             newState.status = newStatus;
-            console.log('Status changed:', prev?.status, '->', newStatus);
           } else {
             // Status unchanged, keep previous
             newState.status = prev?.status || newStatus;

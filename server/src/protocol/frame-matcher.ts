@@ -184,29 +184,34 @@ export function isHeartbeatFrame(frame: number[]): boolean {
 
 /**
  * Try to decode frame using pattern matching (like Python decoder)
+ * Returns array of decoded transactions (frames can contain multiple transactions)
+ * 
+ * IMPORTANT: Only use pattern matching for simple single-transaction frames.
+ * For frames that might contain multiple transactions, return empty array
+ * and let the protocol parser handle it.
  */
-export function tryDecodeFrameByPattern(frame: number[]): ResponseTransactionData | null {
+export function tryDecodeFrameByPattern(frame: number[]): ResponseTransactionData[] {
   // Skip heartbeat frames
   if (isHeartbeatFrame(frame)) {
-    return null;
+    return [];
   }
   
-  // Try different frame patterns in order of likelihood
+  const results: ResponseTransactionData[] = [];
   
-  if (isFuelingWithExtraFrame(frame)) {
-    return decodeFuelingWithExtraFrame(frame);
+  // ONLY use pattern matching for frames that are definitely single-transaction:
+  // - 9-byte status frames (ADR CTRL 01 01 STATUS CRC CRC 03 FA)
+  if (frame.length === 9 && isStatusFrame(frame)) {
+    const decoded = decodeStatusFrame(frame);
+    if (decoded) {
+      results.push(decoded);
+    }
+    return results;
   }
   
-  if (isFuelingFrame(frame)) {
-    return decodeFuelingFrame(frame);
-  }
+  // For all other frames (including 15-byte frames that might have multiple transactions),
+  // return empty array and let protocol-based parsing handle it
+  // This prevents double-decoding of frames with multiple transactions
   
-  if (isStatusFrame(frame)) {
-    return decodeStatusFrame(frame);
-  }
-  
-  // Could add more patterns here (price table, single price, etc.)
-  
-  return null;
+  return [];
 }
 

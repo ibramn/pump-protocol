@@ -48,11 +48,20 @@ serialHandler.on('disconnected', () => {
 });
 
 serialHandler.on('message', (message) => {
-  console.log('Received pump message:', {
-    type: message.transaction.type,
+  // Log with transaction type name for clarity
+  const txNames: { [key: number]: string } = {
+    1: 'DC1_STATUS',
+    2: 'DC2_VOLUME_AMOUNT',
+    3: 'DC3_NOZZLE_PRICE',
+    9: 'DC9_IDENTITY'
+  };
+  const txName = txNames[message.transaction.type] || `DC${message.transaction.type}`;
+  
+  console.log(`[${txName}]`, {
     address: `0x${message.address.toString(16)}`,
     data: message.transaction.data,
-    rawFrame: message.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+    frameLength: message.rawFrame.length,
+    rawHex: message.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
   });
   wsHandler.broadcastPumpMessage(message);
 });
