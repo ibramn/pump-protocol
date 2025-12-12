@@ -53,7 +53,9 @@ serialHandler.on('message', (message) => {
 });
 
 serialHandler.on('frameError', (error) => {
-  console.error('Frame error:', error);
+  // Log frame errors but don't treat them as fatal
+  // Many frames may not parse correctly but still contain valid data
+  console.warn('Frame parsing warning:', error.error, 'Frame length:', error.frame.length);
 });
 
 serialHandler.on('error', (error) => {

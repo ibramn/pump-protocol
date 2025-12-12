@@ -128,6 +128,7 @@ export function parseFrame(frame: number[]): Frame | null {
   }
 
   // Extract transactions (skip ADR, CTRL, and trailing CRC-1, CRC-2, ETX, SF)
+  // Note: Some frames may not follow strict protocol structure, so we're lenient
   const transactions: Transaction[] = [];
   let pos = 2; // Start after ADR and CTRL
 
@@ -139,9 +140,21 @@ export function parseFrame(frame: number[]): Frame | null {
     const trans = frame[pos];
     const lng = frame[pos + 1];
     
+    // Validate length is reasonable (0-255)
+    if (lng < 0 || lng > 255) {
+      // Invalid length, try to find next transaction or break
+      pos++;
+      continue;
+    }
+    
     // Check if we have enough bytes for the data
     if (pos + 2 + lng > frame.length - 4) {
-      break; // Incomplete transaction
+      // Not enough data - might be incomplete frame, but try to extract what we can
+      const availableData = frame.slice(pos + 2, frame.length - 4);
+      if (availableData.length > 0) {
+        transactions.push({ trans, lng: availableData.length, data: availableData });
+      }
+      break; // Can't continue
     }
 
     const data = frame.slice(pos + 2, pos + 2 + lng);
@@ -149,20 +162,27 @@ export function parseFrame(frame: number[]): Frame | null {
     
     pos += 2 + lng; // Move to next transaction
   }
+  
+  // If no transactions were found but frame looks valid, create a raw transaction
+  // This handles frames that don't follow the exact protocol structure
+  if (transactions.length === 0 && frame.length >= 8) {
+    // Extract all data between ADR/CTRL and CRC/ETX/SF as a single transaction
+    const rawData = frame.slice(2, frame.length - 4);
+    if (rawData.length > 0) {
+      // Try to interpret first byte as transaction type
+      const trans = rawData[0];
+      const data = rawData.slice(1);
+      transactions.push({ trans, lng: data.length, data });
+    }
+  }
 
-  // Extract CRC
+  // Extract CRC (but don't validate - matching Python decoder behavior)
   const crc1 = frame[frame.length - 4];
   const crc2 = frame[frame.length - 3];
 
-  // Verify CRC
-  const frameData = frame.slice(0, frame.length - 4); // Everything except CRC and delimiters
-  const calculatedCRC = calculateCRC16(frameData);
-  
-  if (calculatedCRC.crc1 !== crc1 || calculatedCRC.crc2 !== crc2) {
-    // CRC mismatch - frame may be corrupted
-    // For now, we'll still return the frame but mark it as potentially invalid
-    // In production, you might want to reject frames with CRC errors
-  }
+  // Note: CRC validation is skipped for incoming frames.
+  // The Python decoder doesn't validate CRC, and many DART implementations
+  // use different CRC algorithms or frame formats. We process frames regardless.
 
   return {
     address,

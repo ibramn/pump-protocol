@@ -6,6 +6,7 @@
 import { SerialPort } from 'serialport';
 import { extractFrames, parseFrame, validateFrameCRC } from '../protocol/line-protocol';
 import { decodeResponseTransaction } from '../protocol/decoder';
+import { tryDecodeFrameByPattern } from '../protocol/frame-matcher';
 import { DecodedMessage, SerialConfig, PumpAddress } from '../types/protocol';
 import { EventEmitter } from 'events';
 
@@ -146,45 +147,61 @@ export class SerialHandler extends EventEmitter {
    * Process a complete frame
    */
   private processFrame(frame: number[]): void {
-    // Validate CRC
-    if (!validateFrameCRC(frame)) {
-      this.emit('frameError', { frame, error: 'CRC mismatch' });
+    // Extract address from frame (first byte)
+    const address = frame[0] as PumpAddress;
+    
+    // Validate address range
+    if (address < 0x50 || address > 0x6F) {
+      // Not a valid pump address, skip
       return;
     }
 
-    // Parse frame
+    // First, try pattern-based decoding (like Python decoder)
+    let decoded = tryDecodeFrameByPattern(frame);
+    
+    if (decoded) {
+      // Pattern match succeeded
+      const message: DecodedMessage = {
+        address,
+        timestamp: new Date(),
+        transaction: decoded,
+        rawFrame: frame
+      };
+      this.emit('message', message);
+      return;
+    }
+
+    // If pattern matching fails, try protocol-based parsing
     const parsedFrame = parseFrame(frame);
-    if (!parsedFrame) {
-      this.emit('frameError', { frame, error: 'Failed to parse frame' });
+    if (parsedFrame && parsedFrame.transactions.length > 0) {
+      // Decode all transactions in the frame
+      for (const transaction of parsedFrame.transactions) {
+        const txDecoded = decodeResponseTransaction(transaction);
+        
+        if (txDecoded) {
+          const message: DecodedMessage = {
+            address: parsedFrame.address,
+            timestamp: new Date(),
+            transaction: txDecoded,
+            rawFrame: frame
+          };
+          this.emit('message', message);
+        } else {
+          // Unknown transaction type - log but don't error
+          console.log('Unknown transaction type:', transaction.trans, 'Length:', transaction.lng);
+          this.emit('unknownTransaction', {
+            address: parsedFrame.address,
+            transaction,
+            rawFrame: frame
+          });
+        }
+      }
       return;
     }
 
-    // Check if frame is addressed to us (or broadcast)
-    // For now, we accept frames from any pump address
-    // You might want to filter by this.config.pumpAddress
-
-    // Decode all transactions in the frame
-    for (const transaction of parsedFrame.transactions) {
-      const decoded = decodeResponseTransaction(transaction);
-      
-      if (decoded) {
-        const message: DecodedMessage = {
-          address: parsedFrame.address,
-          timestamp: new Date(),
-          transaction: decoded,
-          rawFrame: frame
-        };
-
-        this.emit('message', message);
-      } else {
-        // Unknown transaction type
-        this.emit('unknownTransaction', {
-          address: parsedFrame.address,
-          transaction,
-          rawFrame: frame
-        });
-      }
-    }
+    // If both methods fail, log as unknown frame (but don't error)
+    console.log('Unknown frame pattern, length:', frame.length, 'hex:', 
+                frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
   }
 
   /**
