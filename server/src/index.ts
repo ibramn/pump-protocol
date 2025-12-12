@@ -71,10 +71,12 @@ app.get('/health', (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces by default
 
-server.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket server available at ws://localhost:${PORT}/ws`);
+server.listen(PORT, HOST, async () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`WebSocket server available at ws://${HOST}:${PORT}/ws`);
+  console.log(`API available at http://${HOST}:${PORT}/api`);
   
   // Try to connect to serial port
   try {
