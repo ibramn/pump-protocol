@@ -63,6 +63,33 @@
   cursor: pointer;
 }
 
+.pause-button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #ffc107;
+  background: white;
+  color: #856404;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.pause-button:hover {
+  background: #ffc107;
+  color: #856404;
+}
+
+.pause-button.paused {
+  border-color: #28a745;
+  color: #155724;
+}
+
+.pause-button.paused:hover {
+  background: #28a745;
+  color: white;
+}
+
 .clear-button {
   padding: 0.4rem 0.8rem;
   border: 1px solid #dc3545;
@@ -77,6 +104,18 @@
 .clear-button:hover {
   background: #dc3545;
   color: white;
+}
+
+.log-paused-banner {
+  padding: 0.75rem 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  color: #856404;
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: 500;
 }
 
 .log-count {

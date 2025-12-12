@@ -172,11 +172,27 @@ export function decodeFuelingWithExtraFrame(frame: number[]): ResponseTransactio
 }
 
 /**
- * Check if frame is a heartbeat (should be skipped)
+ * Check if frame is a heartbeat/keepalive (should be skipped)
+ * Common patterns:
+ * - 50 20 FA (3 bytes) - line idle/keepalive
+ * - 50 70 FA (3 bytes) - line idle/keepalive
+ * - 50 C1-CF FA (3 bytes) - control sequence keepalive
  */
 export function isHeartbeatFrame(frame: number[]): boolean {
+  // Check for 3-byte heartbeat patterns: 50 XX FA
+  if (frame.length === 3) {
+    if (frame[0] === 0x50 && frame[2] === 0xFA) {
+      const middleByte = frame[1];
+      // Common heartbeat bytes: 0x20, 0x70, or 0xC1-0xCF (control sequence)
+      if (middleByte === 0x20 || middleByte === 0x70 || 
+          (middleByte >= 0xC1 && middleByte <= 0xCF)) {
+        return true;
+      }
+    }
+  }
+  
   if (frame.length < 6) {
-    return true;
+    return true; // Too short to be a valid DART frame
   }
   const body = frame.slice(0, -2); // Exclude ETX and SF
   return body.every(x => [0x50, 0x51, 0x20, 0x70, 0xFA].includes(x));

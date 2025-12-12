@@ -235,8 +235,17 @@ export class SerialHandler extends EventEmitter {
       return;
     }
 
-    // Skip heartbeat frames (small frames with repeating patterns)
+    // Skip heartbeat/keepalive frames (small frames with repeating patterns)
     if (frame.length < 6) {
+      // Check for common heartbeat patterns: 50 20 FA, 50 70 FA, 50 C1-CF FA
+      if (frame.length === 3 && frame[0] === 0x50 && frame[2] === 0xFA) {
+        // Pattern: 50 XX FA where XX is 0x20, 0x70, or 0xC1-0xCF
+        const middleByte = frame[1];
+        if (middleByte === 0x20 || middleByte === 0x70 || 
+            (middleByte >= 0xC1 && middleByte <= 0xCF)) {
+          return; // Skip heartbeat/keepalive
+        }
+      }
       return;
     }
     

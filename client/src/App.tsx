@@ -15,6 +15,7 @@ function App() {
   const [pumpState, setPumpState] = useState<PumpState | null>(null);
   const [transactionLog, setTransactionLog] = useState<TransactionLogEntry[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsPaused, setLogsPaused] = useState(false);
 
   // Handle WebSocket messages
   useEffect(() => {
@@ -31,10 +32,19 @@ function App() {
         console.log('Connection status:', lastMessage.data);
         break;
       case 'log':
-        handleLogMessage(lastMessage.data);
+        // Only add logs if not paused
+        if (logsPaused) {
+          console.log('[LOG] Logging is paused, skipping log entry');
+        } else {
+          setLogs(prev => {
+            const newLogs = [...prev, lastMessage.data];
+            // Keep only last 1000 logs to prevent memory issues
+            return newLogs.slice(-1000);
+          });
+        }
         break;
     }
-  }, [lastMessage]);
+  }, [lastMessage, logsPaused]);
 
   const handlePumpMessage = (data: any) => {
     // Update pump state based on transaction type
@@ -172,6 +182,10 @@ function App() {
   };
 
   const handleLogMessage = (data: LogEntry) => {
+    // Only add logs if not paused
+    if (logsPaused) {
+      return;
+    }
     setLogs(prev => {
       const newLogs = [...prev, data];
       // Keep only last 1000 logs to prevent memory issues
@@ -209,7 +223,12 @@ function App() {
       </div>
 
       <div className="log-section">
-        <LogPanel logs={logs} onClear={clearLogs} />
+        <LogPanel 
+          logs={logs} 
+          onClear={clearLogs}
+          paused={logsPaused}
+          onPauseChange={setLogsPaused}
+        />
       </div>
     </div>
   );

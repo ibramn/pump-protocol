@@ -13,12 +13,26 @@ export interface LogEntry {
 interface LogPanelProps {
   logs: LogEntry[];
   onClear?: () => void;
+  paused?: boolean;
+  onPauseChange?: (paused: boolean) => void;
 }
 
-export function LogPanel({ logs, onClear }: LogPanelProps) {
+export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange }: LogPanelProps) {
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState<'all' | 'raw' | 'frame' | 'decoded' | 'sent' | 'error'>('all');
+  const [internalPaused, setInternalPaused] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+  
+  // Use external paused state if provided, otherwise use internal state
+  const paused = externalPaused !== undefined ? externalPaused : internalPaused;
+  const setPaused = (value: boolean) => {
+    console.log('[LOG PANEL] Setting paused to:', value);
+    if (onPauseChange) {
+      onPauseChange(value);
+    } else {
+      setInternalPaused(value);
+    }
+  };
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -100,6 +114,13 @@ export function LogPanel({ logs, onClear }: LogPanelProps) {
             </button>
           </div>
           <div className="log-actions">
+            <button
+              className={`pause-button ${paused ? 'paused' : ''}`}
+              onClick={() => setPaused(!paused)}
+              title={paused ? 'Resume logging' : 'Pause logging'}
+            >
+              {paused ? '▶ Resume' : '⏸ Pause'}
+            </button>
             <label className="auto-scroll-toggle">
               <input
                 type="checkbox"
@@ -120,6 +141,11 @@ export function LogPanel({ logs, onClear }: LogPanelProps) {
         </div>
       </div>
 
+      {paused && (
+        <div className="log-paused-banner">
+          ⏸ Logging is paused. New logs will not be displayed until resumed.
+        </div>
+      )}
       <div className="log-content">
         {filteredLogs.length === 0 ? (
           <div className="log-empty">No logs to display</div>
