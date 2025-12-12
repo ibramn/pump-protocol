@@ -124,13 +124,19 @@ export class SerialHandler extends EventEmitter {
   async sendFrame(frame: number[]): Promise<void> {
     const frameHex = frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
     console.log(`[SERIAL] Sending frame (${frame.length} bytes):`, frameHex);
+    
+    // Emit frame sent event for logging
+    this.emit('frameSent', {
+      frame,
+      hex: frameHex,
+      length: frame.length
+    });
+    
     await this.sendData(frame);
     
     // Small delay for RS485 half-duplex - allow time for transmission to complete
     // and for the line to switch from transmit to receive mode
     await new Promise(resolve => setTimeout(resolve, 50));
-    
-    this.emit('frameSent', frame);
   }
 
   /**
@@ -140,6 +146,13 @@ export class SerialHandler extends EventEmitter {
     // Log raw incoming bytes for debugging
     const rawHex = Array.from(data).map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
     console.log(`[RAW INCOMING] ${data.length} bytes:`, rawHex);
+    
+    // Emit raw data event for logging
+    this.emit('rawData', {
+      bytes: Array.from(data),
+      hex: rawHex,
+      length: data.length
+    });
     
     // Add new bytes to buffer
     const newBytes = Array.from(data);
@@ -152,6 +165,14 @@ export class SerialHandler extends EventEmitter {
     for (const frame of frames) {
       const frameHex = frame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
       console.log(`[FRAME EXTRACTED] ${frame.length} bytes:`, frameHex);
+      
+      // Emit frame extracted event for logging
+      this.emit('frameExtracted', {
+        frame,
+        hex: frameHex,
+        length: frame.length
+      });
+      
       this.processFrame(frame);
     }
 

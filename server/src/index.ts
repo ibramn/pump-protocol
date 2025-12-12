@@ -47,6 +47,48 @@ serialHandler.on('disconnected', () => {
   wsHandler.broadcastConnectionStatus(false);
 });
 
+// Log raw incoming data
+serialHandler.on('rawData', (data: { bytes: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('raw', `Raw incoming: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
+// Log extracted frames
+serialHandler.on('frameExtracted', (data: { frame: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('frame', `Frame extracted: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
+// Log sent frames
+serialHandler.on('frameSent', (data: { frame: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('sent', `Frame sent: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
+// Log raw incoming data
+serialHandler.on('rawData', (data: { bytes: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('raw', `Raw incoming: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
+// Log extracted frames
+serialHandler.on('frameExtracted', (data: { frame: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('frame', `Frame extracted: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
+// Log sent frames
+serialHandler.on('frameSent', (data: { frame: number[]; hex: string; length: number }) => {
+  wsHandler.broadcastLog('sent', `Frame sent: ${data.length} bytes`, {
+    length: data.length
+  }, data.hex);
+});
+
 // Track last status to detect rapid switching
 let lastStatus: { address: number; status: number; timestamp: number } | null = null;
 
@@ -91,7 +133,15 @@ serialHandler.on('message', (message) => {
     frameHex: frameHex
   });
   
+  // Broadcast to WebSocket clients
   wsHandler.broadcastPumpMessage(message);
+  
+  // Also send as log entry
+  wsHandler.broadcastLog('decoded', `${txName} from pump 0x${message.address.toString(16)}`, {
+    address: `0x${message.address.toString(16)}`,
+    data: message.transaction.data,
+    frameLength: message.rawFrame.length
+  }, frameHex);
 });
 
 serialHandler.on('frameError', (error) => {
@@ -99,6 +149,12 @@ serialHandler.on('frameError', (error) => {
   // Many frames may not parse correctly but still contain valid data
   const frameHex = error.frame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   console.warn('Frame parsing warning:', error.error, 'Frame length:', error.frame.length, 'Hex:', frameHex);
+  
+  // Broadcast error log
+  wsHandler.broadcastLog('error', `Frame parsing warning: ${error.error}`, {
+    frameLength: error.frame.length,
+    error: error.error
+  }, frameHex);
 });
 
 serialHandler.on('unknownTransaction', (data) => {
@@ -110,6 +166,14 @@ serialHandler.on('unknownTransaction', (data) => {
     data: data.transaction.data.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' '),
     frameHex
   });
+  
+  // Broadcast unknown transaction log
+  wsHandler.broadcastLog('unknown', `Unknown transaction type 0x${data.transaction.trans.toString(16)}`, {
+    address: `0x${data.address.toString(16)}`,
+    transaction: data.transaction.trans,
+    length: data.transaction.lng,
+    data: data.transaction.data.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+  }, frameHex);
 });
 
 serialHandler.on('error', (error) => {

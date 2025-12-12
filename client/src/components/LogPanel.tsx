@@ -1,0 +1,154 @@
+import { useState, useEffect, useRef } from 'react';
+import './LogPanel.css';
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  type: 'raw' | 'frame' | 'decoded' | 'sent' | 'error' | 'unknown';
+  message: string;
+  data?: any;
+  hex?: string;
+}
+
+interface LogPanelProps {
+  logs: LogEntry[];
+  onClear?: () => void;
+}
+
+export function LogPanel({ logs, onClear }: LogPanelProps) {
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'raw' | 'frame' | 'decoded' | 'sent' | 'error'>('all');
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (autoScroll && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, autoScroll]);
+
+  const filteredLogs = logs.filter(log => {
+    if (filter === 'all') return true;
+    return log.type === filter;
+  });
+
+  const getLogIcon = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'raw': return '📥';
+      case 'frame': return '📦';
+      case 'decoded': return '✅';
+      case 'sent': return '📤';
+      case 'error': return '❌';
+      case 'unknown': return '❓';
+      default: return '📋';
+    }
+  };
+
+  const getLogColor = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'raw': return 'log-raw';
+      case 'frame': return 'log-frame';
+      case 'decoded': return 'log-decoded';
+      case 'sent': return 'log-sent';
+      case 'error': return 'log-error';
+      case 'unknown': return 'log-unknown';
+      default: return '';
+    }
+  };
+
+  return (
+    <div className="card log-panel">
+      <div className="log-panel-header">
+        <h2 className="card-title">Communication Log</h2>
+        <div className="log-controls">
+          <div className="filter-buttons">
+            <button
+              className={`filter-button ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </button>
+            <button
+              className={`filter-button ${filter === 'raw' ? 'active' : ''}`}
+              onClick={() => setFilter('raw')}
+            >
+              Raw
+            </button>
+            <button
+              className={`filter-button ${filter === 'frame' ? 'active' : ''}`}
+              onClick={() => setFilter('frame')}
+            >
+              Frames
+            </button>
+            <button
+              className={`filter-button ${filter === 'decoded' ? 'active' : ''}`}
+              onClick={() => setFilter('decoded')}
+            >
+              Decoded
+            </button>
+            <button
+              className={`filter-button ${filter === 'sent' ? 'active' : ''}`}
+              onClick={() => setFilter('sent')}
+            >
+              Sent
+            </button>
+            <button
+              className={`filter-button ${filter === 'error' ? 'active' : ''}`}
+              onClick={() => setFilter('error')}
+            >
+              Errors
+            </button>
+          </div>
+          <div className="log-actions">
+            <label className="auto-scroll-toggle">
+              <input
+                type="checkbox"
+                checked={autoScroll}
+                onChange={(e) => setAutoScroll(e.target.checked)}
+              />
+              Auto-scroll
+            </label>
+            {onClear && (
+              <button className="clear-button" onClick={onClear}>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="log-count">
+          {filteredLogs.length} / {logs.length} entries
+        </div>
+      </div>
+
+      <div className="log-content">
+        {filteredLogs.length === 0 ? (
+          <div className="log-empty">No logs to display</div>
+        ) : (
+          filteredLogs.map((log) => (
+            <div key={log.id} className={`log-entry ${getLogColor(log.type)}`}>
+              <div className="log-header">
+                <span className="log-icon">{getLogIcon(log.type)}</span>
+                <span className="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                <span className="log-type">{log.type.toUpperCase()}</span>
+                <span className="log-message">{log.message}</span>
+              </div>
+              {log.hex && (
+                <div className="log-hex">
+                  <span className="log-hex-label">Hex:</span>
+                  <code className="log-hex-value">{log.hex}</code>
+                </div>
+              )}
+              {log.data && (
+                <div className="log-data">
+                  <pre>{JSON.stringify(log.data, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+        <div ref={logEndRef} />
+      </div>
+    </div>
+  );
+}
+

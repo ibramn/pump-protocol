@@ -48,6 +48,13 @@
   width: 100%;
 }
 
+.log-section {
+  padding: 0 1rem 1rem 1rem;
+  max-width: 1800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .left-panel,
 .right-panel {
   display: flex;

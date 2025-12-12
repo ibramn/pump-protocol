@@ -5,6 +5,7 @@ import { CommandPanel } from './components/CommandPanel';
 import { StatusDisplay } from './components/StatusDisplay';
 import { TransactionLog } from './components/TransactionLog';
 import { PumpVisualization } from './components/PumpVisualization';
+import { LogPanel, LogEntry } from './components/LogPanel';
 import { PumpState, TransactionLogEntry } from './types/protocol';
 import { config } from './config';
 import './App.css';
@@ -13,6 +14,7 @@ function App() {
   const { isConnected, lastMessage } = useWebSocket(config.wsUrl);
   const [pumpState, setPumpState] = useState<PumpState | null>(null);
   const [transactionLog, setTransactionLog] = useState<TransactionLogEntry[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   // Handle WebSocket messages
   useEffect(() => {
@@ -27,6 +29,9 @@ function App() {
         break;
       case 'connectionStatus':
         console.log('Connection status:', lastMessage.data);
+        break;
+      case 'log':
+        handleLogMessage(lastMessage.data);
         break;
     }
   }, [lastMessage]);
@@ -166,6 +171,18 @@ function App() {
     setTransactionLog((prev) => [logEntry, ...prev].slice(0, 1000));
   };
 
+  const handleLogMessage = (data: LogEntry) => {
+    setLogs(prev => {
+      const newLogs = [...prev, data];
+      // Keep only last 1000 logs to prevent memory issues
+      return newLogs.slice(-1000);
+    });
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -189,6 +206,10 @@ function App() {
           <StatusDisplay pumpState={pumpState} />
           <TransactionLog transactions={transactionLog} />
         </div>
+      </div>
+
+      <div className="log-section">
+        <LogPanel logs={logs} onClear={clearLogs} />
       </div>
     </div>
   );

@@ -112,6 +112,23 @@ export class WebSocketHandler {
   }
 
   /**
+   * Broadcast log message to clients
+   */
+  broadcastLog(type: 'raw' | 'frame' | 'decoded' | 'sent' | 'error' | 'unknown', message: string, data?: any, hex?: string): void {
+    this.broadcast({
+      type: 'log',
+      data: {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        type,
+        message,
+        data,
+        hex
+      }
+    });
+  }
+
+  /**
    * Handle message from client
    */
   private handleClientMessage(client: WebSocket, data: any): void {

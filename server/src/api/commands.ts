@@ -7,8 +7,9 @@ import { buildFrame } from '../protocol/line-protocol';
 import { encodeCommandTransaction, CommandEncoders } from '../protocol/encoder';
 import { CommandTransactionData, PumpAddress, SerialConfig } from '../types/protocol';
 import { SerialHandler } from '../serial/serial-handler';
+import { WebSocketHandler } from '../websocket/ws-handler';
 
-export function createCommandsRouter(serialHandler: SerialHandler) {
+export function createCommandsRouter(serialHandler: SerialHandler, wsHandler?: WebSocketHandler) {
   const router = Router();
 
   /**
@@ -104,9 +105,20 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
         : `TX_${transactionData.type}`;
       
       console.log(`[SEND] ${cmdName} to pump 0x${address.toString(16)}`);
-      console.log(`[SEND] Frame (${frame.length} bytes):`, frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
+      const frameHex = frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+      console.log(`[SEND] Frame (${frame.length} bytes):`, frameHex);
       if (transactions.length > 1) {
         console.log(`[SEND] Multiple transactions:`, transactions.map(t => `CD${t.trans} (${t.lng} bytes)`).join(', '));
+      }
+
+      // Broadcast log before sending
+      if (wsHandler) {
+        wsHandler.broadcastLog('sent', `${cmdName} to pump 0x${address.toString(16)}`, {
+          command: cmdName,
+          address: `0x${address.toString(16)}`,
+          frameLength: frame.length,
+          transactions: transactions.map(t => `CD${t.trans} (${t.lng} bytes)`).join(', ')
+        }, frameHex);
       }
 
       // Send frame
