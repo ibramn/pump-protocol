@@ -80,12 +80,17 @@ export function extractFrames(byteStream: number[]): number[][] {
   let i = 0;
 
   while (i < byteStream.length) {
-    // Skip USC+ wrapper blocks: 50 XX FA or 51 XX FA
+    // Skip heartbeat/keepalive patterns: 50 XX FA where XX is 0x20, 0x70, or 0xC1-0xCF
     if (i + 2 < byteStream.length && 
-        byteStream[i + 2] === SF && 
-        (byteStream[i] === 0x50 || byteStream[i] === 0x51)) {
-      i += 3;
-      continue;
+        byteStream[i] === 0x50 && 
+        byteStream[i + 2] === SF) {
+      const middleByte = byteStream[i + 1];
+      if (middleByte === 0x20 || middleByte === 0x70 || 
+          (middleByte >= 0xC1 && middleByte <= 0xCF)) {
+        // Skip heartbeat - don't include in frame extraction
+        i += 3;
+        continue;
+      }
     }
 
     current.push(byteStream[i]);
@@ -94,7 +99,14 @@ export function extractFrames(byteStream: number[]): number[][] {
     if (current.length >= 2 && 
         current[current.length - 2] === ETX && 
         current[current.length - 1] === SF) {
-      frames.push([...current]);
+      // Only add frame if it's valid:
+      // 1. Minimum 8 bytes (ADR CTRL TRANS LNG CRC CRC ETX SF)
+      // 2. Starts with valid pump address (0x50-0x6F)
+      if (current.length >= 8 && 
+          current[0] >= 0x50 && 
+          current[0] <= 0x6F) {
+        frames.push([...current]);
+      }
       current = [];
     }
 

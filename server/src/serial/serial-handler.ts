@@ -193,10 +193,32 @@ export class SerialHandler extends EventEmitter {
 
     // Process each complete frame
     for (const frame of frames) {
+      // Skip invalid frames (too short, missing delimiters, etc.)
+      if (frame.length < 8) {
+        // Too short to be a valid DART frame (minimum is 8 bytes: ADR CTRL TRANS LNG CRC CRC ETX SF)
+        continue;
+      }
+      
+      // Validate frame has proper delimiters
+      if (frame[frame.length - 2] !== 0x03 || frame[frame.length - 1] !== 0xFA) {
+        // Missing ETX/SF delimiters - incomplete frame
+        continue;
+      }
+      
+      // Skip heartbeat frames (3 bytes: 50 XX FA where XX is 0x20, 0x70, or 0xC1-0xCF)
+      if (frame.length === 3 && frame[0] === 0x50 && frame[2] === 0xFA) {
+        const middleByte = frame[1];
+        if (middleByte === 0x20 || middleByte === 0x70 || 
+            (middleByte >= 0xC1 && middleByte <= 0xCF)) {
+          // Skip heartbeat - don't log it
+          continue;
+        }
+      }
+      
       const frameHex = frame.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
       console.log(`[FRAME EXTRACTED] ${frame.length} bytes:`, frameHex);
       
-      // Emit frame extracted event for logging
+      // Emit frame extracted event for logging (only valid, non-heartbeat frames)
       this.emit('frameExtracted', {
         frame,
         hex: frameHex,
