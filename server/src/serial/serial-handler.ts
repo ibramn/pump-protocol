@@ -235,12 +235,14 @@ export class SerialHandler extends EventEmitter {
         }
       }
       
-      // Send acknowledgment for status frames
-      if (shouldAck) {
-        setTimeout(() => {
-          this.sendAcknowledgment(address).catch(console.error);
-        }, 50);
-      }
+      // DISABLED: Sending RETURN STATUS as ACK causes the pump to send more status updates
+      // creating a loop. The pump doesn't seem to require explicit acknowledgments.
+      // If your pump requires ACKs, you may need a different acknowledgment method.
+      // if (shouldAck) {
+      //   setTimeout(() => {
+      //     this.sendAcknowledgment(address).catch(console.error);
+      //   }, 50);
+      // }
       
       return;
     }
@@ -284,13 +286,14 @@ export class SerialHandler extends EventEmitter {
         }
       }
       
-      // Send acknowledgment if needed (some pumps require this to stop rapid status switching)
-      // Rate-limited to prevent acknowledgment loops
-      if (shouldAck) {
-        setTimeout(() => {
-          this.sendAcknowledgment(parsedFrame.address).catch(console.error);
-        }, 100); // Small delay to avoid immediate response
-      }
+      // DISABLED: Sending RETURN STATUS as ACK causes the pump to send more status updates
+      // creating a loop. The pump doesn't seem to require explicit acknowledgments.
+      // The rapid status switching appears to be the pump's normal behavior when idle.
+      // if (shouldAck) {
+      //   setTimeout(() => {
+      //     this.sendAcknowledgment(parsedFrame.address).catch(console.error);
+      //   }, 100);
+      // }
       
       return;
     }

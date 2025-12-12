@@ -60,7 +60,7 @@ serialHandler.on('message', (message) => {
   };
   const txName = txNames[message.transaction.type] || `DC${message.transaction.type}`;
   
-  // For status messages, check if we're getting rapid status switches
+  // For status messages, track status changes (but don't warn - this is normal pump behavior)
   if (message.transaction.type === 1) {
     const status = message.transaction.data.status;
     const now = Date.now();
@@ -69,9 +69,10 @@ serialHandler.on('message', (message) => {
         lastStatus.address === message.address && 
         lastStatus.status !== status) {
       const timeSinceLastStatus = now - lastStatus.timestamp;
-      if (timeSinceLastStatus < 1000) {
-        console.warn(`⚠️  Rapid status switch detected: ${lastStatus.status} -> ${status} (${timeSinceLastStatus}ms apart)`);
-      }
+      // This is normal - pump alternates between status 0 and 5 when idle
+      // Status 0 = PUMP NOT PROGRAMMED (9-byte frame)
+      // Status 5 = FILLING COMPLETED (15-byte frame with DC1 + DC3)
+      // The pump is just reporting its current state
     }
     
     lastStatus = {

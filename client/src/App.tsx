@@ -82,19 +82,27 @@ function App() {
             }
           });
           
-          // Only update if:
-          // 1. The most common recent status is different from current, AND
-          // 2. It appears at least 3 times in recent history (stable)
-          if (prev?.status !== mostCommonStatus && maxCount >= 3) {
+          // The pump alternates between status 0 (NOT PROGRAMMED) and 5 (FILLING COMPLETED)
+          // when idle. This appears to be normal pump behavior - it's checking if controller is alive.
+          // 
+          // Strategy: Prefer status 5 (FILLING COMPLETED) when both appear, as it's more informative
+          // (includes price/nozzle data). Only show status 0 if it's consistently the only status.
+          
+          // Check if status 5 appears in recent history
+          const hasStatus5 = recentStatuses.some(e => e.status === 5);
+          const hasStatus0 = recentStatuses.some(e => e.status === 0);
+          
+          if (hasStatus5 && hasStatus0) {
+            // Both statuses appear - prefer status 5 (more informative, includes price)
+            newState.status = 5;
+            newState.lastStatusUpdateTime = now;
+          } else if (prev?.status !== mostCommonStatus && maxCount >= 2) {
+            // Single status appears consistently - use it
             newState.status = mostCommonStatus;
             newState.lastStatusUpdateTime = now;
-            console.log('Status updated (stable):', prev?.status, '->', mostCommonStatus, `(${maxCount} occurrences in last 2s)`);
           } else {
-            // Keep current status - either it's the same or not stable enough
+            // Keep current status
             newState.status = prev?.status ?? newStatus;
-            if (prev?.status !== newStatus && maxCount < 3) {
-              console.log('Status change ignored (unstable):', prev?.status, '->', newStatus, `(only ${maxCount} occurrences)`);
-            }
           }
           break;
         case 2: // DC2_FILLED_VOLUME_AMOUNT
