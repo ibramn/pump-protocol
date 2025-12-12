@@ -140,22 +140,62 @@ export class SerialHandler extends EventEmitter {
   }
 
   /**
+   * Check if raw data contains only heartbeat patterns (should be excluded from logging)
+   */
+  private isHeartbeatData(bytes: number[]): boolean {
+    // Check for common heartbeat patterns: 50 20 FA, 50 70 FA, 50 C1-CF FA
+    if (bytes.length === 3) {
+      if (bytes[0] === 0x50 && bytes[2] === 0xFA) {
+        const middleByte = bytes[1];
+        if (middleByte === 0x20 || middleByte === 0x70 || 
+            (middleByte >= 0xC1 && middleByte <= 0xCF)) {
+          return true;
+        }
+      }
+    }
+    // Check for repeating heartbeat patterns in longer data
+    if (bytes.length > 3 && bytes.length % 3 === 0) {
+      // Check if all 3-byte chunks are heartbeat patterns
+      let allHeartbeat = true;
+      for (let i = 0; i < bytes.length; i += 3) {
+        if (i + 2 >= bytes.length) break;
+        if (!(bytes[i] === 0x50 && bytes[i + 2] === 0xFA)) {
+          allHeartbeat = false;
+          break;
+        }
+        const middleByte = bytes[i + 1];
+        if (!(middleByte === 0x20 || middleByte === 0x70 || 
+              (middleByte >= 0xC1 && middleByte <= 0xCF))) {
+          allHeartbeat = false;
+          break;
+        }
+      }
+      if (allHeartbeat) return true;
+    }
+    return false;
+  }
+
+  /**
    * Handle incoming data from serial port
    */
   private handleData(data: Buffer): void {
-    // Log raw incoming bytes for debugging
-    const rawHex = Array.from(data).map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    console.log(`[RAW INCOMING] ${data.length} bytes:`, rawHex);
-    
-    // Emit raw data event for logging
-    this.emit('rawData', {
-      bytes: Array.from(data),
-      hex: rawHex,
-      length: data.length
-    });
-    
-    // Add new bytes to buffer
     const newBytes = Array.from(data);
+    
+    // Skip logging heartbeat/keepalive patterns
+    if (!this.isHeartbeatData(newBytes)) {
+      // Log raw incoming bytes for debugging (excluding heartbeats)
+      const rawHex = newBytes.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+      console.log(`[RAW INCOMING] ${data.length} bytes:`, rawHex);
+      
+      // Emit raw data event for logging
+      this.emit('rawData', {
+        bytes: newBytes,
+        hex: rawHex,
+        length: data.length
+      });
+    }
+    
+    // Add new bytes to buffer (always buffer, even heartbeats, for frame extraction)
     this.byteBuffer.push(...newBytes);
 
     // Extract complete frames
