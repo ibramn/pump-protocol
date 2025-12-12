@@ -1,0 +1,34 @@
+.command-panel {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.command-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.command-section {
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.command-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #34495e;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button-group .button {
+  flex: 1;
+  min-width: 120px;
+}
+

@@ -1,0 +1,33 @@
+.status-display {
+  min-height: auto;
+}
+
+.status-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.status-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.status-value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.no-data {
+  text-align: center;
+  color: #95a5a6;
+  padding: 2rem;
+}
+

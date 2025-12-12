@@ -1,0 +1,158 @@
+.transaction-log {
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-button {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.filter-button:hover {
+  background: #f8f9fa;
+}
+
+.filter-button.active {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.log-count {
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.log-entry {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f8f9fa;
+  transition: all 0.2s;
+}
+
+.log-entry:hover {
+  background: #ecf0f1;
+}
+
+.log-entry.sent {
+  border-left: 3px solid #3498db;
+}
+
+.log-entry.received {
+  border-left: 3px solid #2ecc71;
+}
+
+.log-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.log-entry-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.log-direction {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.log-type {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.log-time {
+  font-size: 0.875rem;
+  color: #7f8c8d;
+}
+
+.log-expand {
+  color: #95a5a6;
+  font-size: 0.75rem;
+}
+
+.log-entry-details {
+  padding: 0.75rem;
+  padding-top: 0;
+  border-top: 1px solid #ddd;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 0 0 4px 4px;
+}
+
+.detail-section {
+  margin-bottom: 0.75rem;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #2c3e50;
+}
+
+.detail-json {
+  background: #2c3e50;
+  color: #2ecc71;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  margin-top: 0.25rem;
+}
+
+.detail-hex {
+  display: block;
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+  margin-top: 0.25rem;
+}
+
+.no-data {
+  text-align: center;
+  color: #95a5a6;
+  padding: 2rem;
+}
+

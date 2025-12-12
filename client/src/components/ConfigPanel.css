@@ -1,0 +1,33 @@
+.config-panel {
+  min-height: auto;
+}
+
+.status-info {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.status-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.status-value {
+  font-weight: 600;
+}
+
+.status-value.connected {
+  color: #2ecc71;
+}
+
+.status-value.disconnected {
+  color: #e74c3c;
+}
+

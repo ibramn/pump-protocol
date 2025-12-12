@@ -1,0 +1,1402 @@
+                       PROTOCOL SPECIFICATION
+
+                          DART PUMP INTERFACE
+
+                                               2.11
+
+                                           2021-11-25
+
+
+
+
+             This document is the property of Dresser Wayne AB. It is not to be used
+              or duplicated without written permission of the owner, and is not to be
+               used in any way inconsistent with the purpose for which it is loaned.
+             Dresser Wayne AB shall not be liable for technical or editorial errors or
+             omissions which may appear in this document. It also retains the right to
+               make changes to this specification at any time without prior notice.
+
+
+
+
+                                    DRESSER WAYNE AB
+                                       P.O. BOX 30049
+                                 SE-200 61 MALMÖ, SWEDEN
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                  CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+                                              TABLE OF CONTENTS
+
+1             GENERAL .............................................................................................................. 1
+1.1           Protocol levels ......................................................................................................... 1
+2             PRINCIPLES........................................................................................................... 2
+2.1           Control of pumps ..................................................................................................... 2
+2.1.1         Commands to a pump .............................................................................................. 2
+2.1.2         Pump status.............................................................................................................. 3
+2.1.3         Command and status flow ....................................................................................... 4
+2.2           Data from the pump ................................................................................................. 7
+2.3           Handling volume and amount ................................................................................. 7
+2.4           Handling prices........................................................................................................ 8
+2.5           Grades and nozzle numbers ..................................................................................... 8
+2.6           Preset amount/volume ............................................................................................. 8
+2.7           Pump identity .......................................................................................................... 9
+3             TRANSACTIONS................................................................................................. 10
+3.1           Transactions from site controller to pump ............................................................ 13
+3.1.1         Command to pump ................................................................................................ 13
+3.1.2         Allowed nozzle numbers ....................................................................................... 14
+3.1.3         Preset volume ........................................................................................................ 14
+3.1.4         Preset amount ........................................................................................................ 15
+3.1.5         Price update ........................................................................................................... 15
+3.1.6         Command to Output (*) ........................................................................................ 16
+3.1.7         Request Total Counters (*).................................................................................... 16
+3.1.8         Set pump parameters (*)........................................................................................ 17
+3.1.9         Set filling type (*).................................................................................................. 17
+3.1.10        Suspend Request (*) .............................................................................................. 18
+3.1.11        Resume Request (*)............................................................................................... 18
+3.1.12        Request Total Counters (*).................................................................................... 19
+3.2           Transactions from pump to site controller ............................................................ 20
+3.2.1         Pump status............................................................................................................ 20
+3.2.2         Filled volume and amount ..................................................................................... 20
+3.2.3         Nozzle status and filling price ............................................................................... 21
+3.2.4         Alarm Code (*) ...................................................................................................... 22
+3.2.5         Pump Parameters (*) ............................................................................................. 23
+3.2.6         Pump identity ........................................................................................................ 23
+3.2.7         Suspend Reply (*) ................................................................................................. 24
+3.2.8         Resume Reply (*) .................................................................................................. 24
+3.2.9         Total Counters (*) ................................................................................................. 25
+3.2.10        IFSF Stand Alone Mode (*) .................................................................................. 26
+3.2.11        Pump Unit Prices (*) ............................................................................................. 27
+4             EXAMPLES .......................................................................................................... 28
+4.1           Clear display when customer pays ........................................................................ 28
+4.2           Clear display at start of filling ............................................................................... 29
+4.3           Price change .......................................................................................................... 30
+5             LIMITATIONS ..................................................................................................... 31
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                           CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+1             GENERAL
+
+This document describes the protocol between a DRESSER WAYNE pump and a site con-
+troller at a petrol station. Only the protocol above the line protocol is described. From the line
+protocol, a device address and a buffer with data are received. All error handling e.g. CRC
+and parity check is made in the line protocol.
+
+Each pump has a device address (50H-6FH). A pump shall handle a block if the block is ad-
+dressed to the pump. The test of device address is made in the line protocol.
+
+The line protocol is described in the document "DART-LINE PROTOCOL
+SPECIFICATION".
+
+The electronic interface is described in the document "DART-LINE PROTOCOL
+SPECIFICATION" and in the flow chart "DART CONFIGURATION".
+
+Application specific messages and data, listed as “RESERVED” in this specification, are de-
+scribed in separate application specifications.
+
+
+1.1           Protocol levels
+
+The protocol is divided into 3 levels.
+
+Level 3 Application level.
+Level 2 Line protocol level.
+Level 1 Electronic level.
+
+Level 2 is handling is polling of devices and transport of blocks that are created by level 3.
+Level 2 cheeks that a block is transmitted correctly. The check is made with CRC, parity and
+block sequence number. If an error occurs, retransmission is handled by level 2.
+
+At level 3 blocks are transmitted between site controller and pumps. A block can contain one
+or more transactions that are specified in this document.
+
+Example of a block sent on the communication line.
+
+               TRANS                         DATA
+ ADR       CTRL NO   LNG                 1          2       …   CRC-1 CRC-2        ETX       SF
+
+      Created        Created by level 3. Sent by level 2.         Created and sent by level 2.
+    and sent by
+      level 2.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                           Page 1
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+2             PRINCIPLES
+
+2.1           Control of pumps
+
+2.1.1         Commands to a pump
+
+The site controller can send the following commands to a pump.
+
+      -   RETURN STATUS
+      -   RETURN PUMP IDENTITY
+      -   RETURN FILLING INFORMATION
+      -   RESET
+      -   AUTHORIZE
+      -   SUSPEND
+      -   RESUME
+      -   STOP
+      -   SWITCH OFF
+
+RETURN STATUS:
+The pump shall return status information. This is a global request that will cause the pump to
+return transaction "Pump status" and "Nozzle status and filling price".
+The site controller uses this command when a pump is connected the first time or after a
+communication fault. During normal operation the pump sends transaction "Pump status" and
+transaction "Nozzle status and filling price" at change of status.
+
+RETURN PUMP IDENTITY:
+The pump shall return pump identity in transaction "Pump identity". The site controller will
+only handle pumps that are tested together with the site controller. It is not necessary to use
+this command in normal operation.
+
+RESET:
+The pump clears the display and variables such as filled volume and filled amount.
+
+AUTHORIZE:
+Authorize of the pump. The pump shall now be ready for start of filling. The command can
+come before or after a nozzle is taken out.
+
+SUSPEND:
+This command is used to temporarily stop a filling e.g. when contact with a Vehicle Identifi-
+cation Device is lost. It is a command that will stop the filling, but the main pump status will
+still be AUTHORIZED or FILLING.
+
+RESUME:
+This command is used to reactivate the pump again e.g. when the contact is re-established
+with a Vehicle Identification Device.
+
+STOP:
+The pump goes to filling completed. If a filling was going on, it is stopped.
+
+
+          WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                          Page 2
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+SWITCH OFF:
+Switch off the pump. The command is used when the station is closing or if there is an error
+in the pump.
+
+
+2.1.2         Pump status
+
+Pump status is sent to the site controller with transaction "Pump status".
+
+The pump has the following status:
+
+    -    PUMP NOT PROGRAMMED
+    -    RESET
+    -    AUTHORIZED (SUSPENDED)
+    -    FILLING (SUSPENDED)
+    -    FILLING COMPLETED
+    -    MAX AMOUNT/VOLUME REACHED
+    -    SWITCHED OFF
+
+A status change is caused by a command from the site controller or by an action in the pump
+e.g. nozzle in.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                       Page 3
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+2.1.3         Command and status flow
+
+In the following table the possible commands in different pump status are listed.
+
+Command                   Normally received in status           Action
+
+RETURN STATUS             All                                   Return status
+
+RETURN FILLING            RESET                                 Return filling information
+INFORMATION               AUTHORIZED (SUSPENDED)
+                          FILLING (SUSPENDED)
+                          FILLING COMPLETED
+                          MAX AMOUNT/VOLUME
+                          REACHED
+
+RESET                     FILLING COMPLETED                     Amount, volume and alarm
+                          MAX AMOUNT/VOLUME                     are cleared. The light is
+                          REACHED                               switched on.
+
+AUTHORIZE                 RESET                                 If a grade is selected and al-
+                                                                lowed, then the pump motor is
+                                                                turned on.
+
+SUSPEND                   AUTHORIZED                            The pump valve is closed.
+                          FILLING
+
+RESUME                    SUSPENDED                             The pump valve is opened.
+
+STOP                      RESET                                 The pump motor is turned off.
+                          AUTHORIZED (SUSPENDED)
+                          FILLING (SUSPENDED)
+                          MAX AMOUNT/VOLUME
+                          REACHED
+
+SWITCH OFF                All                                   The light and pump motor are
+                                                                turned off.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                       Page 4
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+In the following table the possible status changes are listed.
+
+From Status                       To Status                      Comment
+
+PUMP NOT PROGRAMMED FILLING COMPLETE                             The pump is correctly pro-
+                                                                 grammed and price block
+                                                                 received.
+
+RESET                             AUTHORIZED                     Command Authorize.
+                                  FILLING COMPLETE               Command Stop.
+                                  “                              Hardware reset or error.
+                                  SWITCHED OFF                   Command Switch off.
+
+AUTHORIZED                        FILLING                        Filled volume >= start lim-
+                                                                 it.
+                                  SUSPENDED                      Command Suspend.
+                                  FILLING COMPLETE               Command Stop.
+                                  “                              Hardware reset or error.
+                                  SWITCHED OFF                   Command Switch off.
+
+FILLING                           SUSPENDED                      Command Suspend.
+                                  FILLING COMPLETE               Nozzle hang-up.
+                                  “                              Command Stop.
+                                  “                              Hardware reset or error.
+                                  MAX AMOUNT/VOLUME              Max amount/volume
+                                  REACHED                        reached.
+                                  SWITCHED OFF                   Command Switch off.
+
+SUSPENDED                         AUTHORIZED                     Command Resume.
+                                  FILLING                        Command Resume.
+                                  FILLING COMPLETE               Nozzle hang-up.
+                                  “                              Command Stop.
+                                  “                              Hardware reset or error.
+                                  SWITCHED OFF                   Command Switch off.
+
+FILLING COMPLETE                  RESET                          Command Reset.
+                                  SWITCHED OFF                   Command Switch off.
+
+MAX AMOUNT/VOLUME                 RESET                          Command Reset.
+REACHED
+                                  FILLING COMPLETE               Command Stop or nozzle
+                                                                 replaced.
+                                  SWITCHED OFF                   Command Switch off.
+
+SWITCHED OFF                      RESET                          Command Reset.
+                                  FILLING COMPLETE               Command Stop.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                     Page 5
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+                                    STATUS CHANGE DIAGRAM
+
+
+                                              RESET
+                  Command STOP
+                  Hardware error                  Command AUTHORIZE
+                                                Command SUSPEND
+                          AUTHORIZED                     SUSPENDED
+            Command STOP            Filling Started Command RESUME
+                                                Command SUSPEND
+                             FILLING                    SUSPENDED
+                  Command                     Command RESUME
+                  STOP                          Max volume/amount reached
+                  Nozzle replaced               and nozzle replaced
+                  Hardware error             MAX
+                                        AMOUNT/VOLUME Command RESET
+                                                Command STOP
+                                                Nozzle replaced
+                                           FILLING          Command RESET
+                                            COMPLETE
+                                                Pump is programmed
+                                                and price received
+                                              NOT
+                                          PROGRAMMED
+
+
+
+    Command SWITCH OFF                                      Command STOP
+                                          SWITCHED OFF
+                                                            Command RESET
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                  Page 6
+                                     CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+2.2           Data from the pump
+
+Data is sent spontaneously at a change or at a request from the site controller.
+
+Spontaneous data:
+
+      -   Status change
+      -   Nozzle in/out
+      -   Select logical nozzle number
+      -   Change of filled volume or amount
+
+Pump status
+
+Pump status is sent to the site controller with transaction "Pump status".
+
+The pump has the following status:
+
+      -   PUMP NOT PROGRAMMED
+      -   RESET
+      -   AUTHORIZED (SUSPENDED)
+      -   FILLING (SUSPENDED)
+      -   FILLING COMPLETED
+      -   MAX AMOUNT/VOLUME REACHED
+      -   SWITCHED OFF
+
+A status change is caused by a command from the site controller or by an action in the pump
+e.g. nozzle in.
+
+
+2.3           Handling volume and amount
+
+It is important that the display at the site controller has the same value as the display at the
+pump. The site controller does not make any calculations, it takes the volume and amount that
+is received from the pump and put it on the display. The pump sends the data only when a
+value is changed or if the site controller does request it. The data is sent in transaction "Filled
+volume and amount". The change normally occurs during a filling. Note that at reset of vol-
+ume and amount counters, the transaction is sent with value=0.
+
+For safety the site controller may request the pump to send transaction "Filled volume and
+amount" at end of filling.
+
+
+
+
+          WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                            Page 7
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+2.4           Handling prices
+
+The unit price that shall be used for a filling is sent from the site controller with transaction
+"Price update". In this document it is called filling price. The pump receives one filling price
+for each nozzle number. If the pump has more than one logical nozzle number, there must be
+prices for all nozzles, otherwise the whole transaction is ignored. If there are more prices than
+nozzles, the prices are accepted but the prices without nozzle are ignored.
+
+The filling price is sent only when the price is changed or if a pump is powered on or zero-
+ized. A zeroized pump stays in status “pump not programmed” until a unit price has been re-
+ceived.
+
+The pump does not accept a new unit price after a filling has started.
+
+
+2.5           Grades and nozzle numbers
+
+The pump shall work only with nozzle number. The site controller handles the connection
+grade-nozzle number.
+
+In this document 'nozzle number' means logical nozzle number and not a physical nozzle. A
+blending pump e.g. with one nozzle and three grade select buttons has three logical nozzle
+numbers.
+
+With transaction "Allowed nozzle numbers" the site controller can select nozzle numbers in a
+pump that is allowed to use for filling. An authorize command is only authorizing allowed
+nozzle numbers. Normally all existing nozzles are allowed. If the same nozzles are allowed at
+every filling from a pump, it is not necessary to send a new transaction for each authorization.
+The pump shall use the last received information about allowed nozzles.
+
+
+2.6           Preset amount/volume
+
+The site controller sends preset volume in transaction "Preset volume" or preset amount in
+transaction "Preset amount". The pump stops the filling when the preset value is reached.
+
+A preset value is used only during one filling. The value is reset when the pump has done a
+reset caused by a reset command.
+
+It is possible to send a new preset value during a filling. The pump always use the last re-
+ceived value. If the site controller first sends preset volume 100 and then during filling sends
+preset amount 50, the pump stops the filling at amount 50. If the amount already is over 50,
+the filling is stopped immediately.
+
+The preset value for amount and volume are set back to a default value when the pump re-
+ceives the command RESET.
+
+If a filling is stopped because of reached preset value, the status sent in transaction "Pump
+status" will be "max amount/volume reached” instead of “filling completed”.
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                          Page 8
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+2.7           Pump identity
+
+With a command the site controller can request an identity from the pump. The pump returns
+identity in transaction "Pump identity". The identity consists of 10 digits.
+
+Digit 1-4:        Manufacturer identity. The identity has to be received from Wayne/Dresser for
+                  use in the pump program.
+
+Digit 5-6:        Pump type within one manufacturer. Also this number has to be received from
+                  Wayne/Dresser.
+
+Digit 7-10: Program version. Free to use by manufacturers.
+
+Digit 1 is MSB.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                           Page 9
+                                    CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3             TRANSACTIONS
+
+A block to or from a pump can have one or more transactions. A transaction can have fixed or
+variable length.
+
+A transaction always starts with a byte containing transaction number and a byte containing
+the length of the data in the transaction. If a transaction has fixed length it does not seem nec-
+essary to have the length byte. But the length byte makes it possible for a program to skip
+transactions that the program does not recognize.
+
+The length of the data block is received from the line protocol. All transactions are handled
+when the sum of handled transactions length is equal to the length of the data block.
+
+Example:
+
+       TRANS      Transaction with fix length 1.
+       LNG        Number of data bytes in the transaction (1).
+       DATA 1
+       TRANS      Transaction with variable length n.
+       LNG        Number of data bytes in the transaction (n).
+       DATA 1
+        :
+       DATA n
+
+In the following section also optional transactions are included for completeness. Transactions
+marked with an asterisk (*) are not needed to interface a standard Dart pump and may not
+even be supported by the pump. They are however used in a full Dart implementation for
+Wayne pumps.
+
+Older versions of dispenser firmware might only support some of the data/messages. Consult
+Dresser Wayne to determine which data is useful/available in YOUR application.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 10
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+The following table contains existing transactions.
+
+From site controller to pump.
+
+       Transaction Comment
+
+       CD1         Command to pump
+       CD2         Allowed nozzle numbers
+       CD3         Preset volume
+       CD4         Preset amount
+       CD5         Price updating
+       CD6         Reserved
+       CD7 *       Command to output
+       CD8 *       Same as CD101
+       CD9 *       Set pump parameters
+       CD10        Reserved
+       CD11         -“-
+       CD12         -“-
+       CD13 *      Filling type
+       CD14 *      Suspend nozzle
+       CD15 *      Resume nozzle
+       CD16        For future standard transactions
+        :
+       CD100       Application dependent transactions
+       CD101 *     Request Total Counters
+       CD102 *     RESERVED
+       CD103 *     RESERVED
+       CD104 *     RESERVED
+       CD105 *     RESERVED
+       CD106 *     RESERVED
+       CD107 *     RESERVED
+       CD108 *     RESERVED
+       CD109 *     RESERVED
+        :
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 11
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+From pump to site controller.
+
+       Transaction Comment
+
+       DC1        Pump status
+       DC2        Filled volume, amount
+       DC3        Selected nozzle number and nozzle in or out and filling price
+       DC4        Reserved
+       DC5 *      Alarm code
+       DC6        Reserved
+       DC7 *      Pump parameters
+       DC8        Reserved
+       DC9        Pump identity
+       DC10       For future standard transactions
+        :
+       DC14 *     Suspended nozzles
+       DC15 *     Resumed nozzles
+        :
+       DC100      Application dependent transactions
+       DC101 *    Total Counters
+       DC102 *    IFSF Stand Alone Mode
+       DC103 *    Pump Unit Prices
+       DC104 *    RESERVED
+       DC105 *    RESERVED
+       DC106 *    RESERVED
+       DC107 *    RESERVED
+       DC108 *    RESERVED
+       DC109 *    RESERVED
+
+         :
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 12
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1           Transactions from site controller to pump
+
+3.1.1         Command to pump
+
+Transaction: CD1
+
+Format:
+
+          MNEMONIC NUMBER
+                   OF BYTES
+
+          TRANS            1      01H
+          LNG              1      Number of data bytes in the transaction
+          DCC              1      Pump control command
+
+DCC 0H-0EH
+
+Following commands can be sent:
+
+      -   00H RETURN STATUS
+      -   02H RETURN PUMP PARAMETERS (*)
+      -   03H RETURN PUMP IDENTITY
+      -   04H RETURN FILLING INFORMATION
+      -   05H RESET
+      -   06H AUTHORIZE
+      -   08H STOP
+      -   0AH SWITCH OFF
+      -   0DH SUSPEND FUELLING POINT (*, alternatively CD14)
+      -   0EH RESUME FUELLING POINT (*, alternatively CD 15)
+      -   0FH RETURN PRICES OF ALL CURRENT GRADES (*)
+
+
+
+
+          WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                Page 13
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.2         Allowed nozzle numbers
+
+Transaction: CD2
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS              1       02H
+        LNG                1       Number of data bytes in the transaction
+        NOZ1               1       Nozzle number
+         :
+        NOZn               1
+
+LNG number of nozzle numbers in the transaction.
+
+NOZ 1-0FH
+NOZ1-n specifies the logical nozzle numbers that is allowed for filling. The transaction is
+used when a pump is authorized. E.g. if nozzle 1-3 is allowed, the transaction contains 1, 2, 3.
+
+
+3.1.3         Preset volume
+
+Transaction: CD3
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS              1       03H
+        LNG                1       Number of data bytes in the transaction
+        VOL                4       Volume
+
+The volume is sent in packed BCD with MSB in first byte. The pump shall stop automatically
+when filled volume = VOL.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 14
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.4         Preset amount
+
+Transaction: CD4
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS                1    04H
+        LNG                  1    Number of data bytes in the transaction
+        AMO                  4    Amount
+
+The amount is sent in packed BCD with MSB in first byte. The pump shall stop automatically
+when filled amount = AMO.
+
+
+3.1.5         Price update
+
+Transaction: CD5
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS                1    05H
+        LNG                  1    Number of data bytes in the transaction
+        PRI1                 3    Price
+         :
+        PRIn                 3
+
+LNG = 3 * number of prices.
+
+PRI is the price in packet BCD with MSB in first byte. PRI1 is the price for logical nozzle
+number 1. PRI2 is the price for logical nozzle number 2 and so on.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 15
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.6         Command to Output (*)
+
+Transaction: CD7
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS              1      07H
+        LNG                1      Number of data bytes in the transaction
+        NUM                1      Number of output function
+        COMD               1      Command
+
+NUM = 0 - 0FFH
+COMD = 0 – 0FFH
+
+Used to control outputs (NUM) of the pump where:
+
+         0 – 09H       Reserved
+         0AH           Master Red/Green functionality
+         0BH           Master SB/BT functionality
+         0CH           Back Light Control functionality
+         0DH           Speak to Pump functionality
+         0EH           Hose Leak Test functionality
+
+Each of the Outputs above can be controlled with the following commands (COMD):
+
+         00H           Switch OFF
+         01H           Switch ON
+         02 – 09H      Reserved
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+3.1.7         Request Total Counters (*)
+
+Transaction: CD8
+
+Handle the same way as CD101.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 16
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.8         Set pump parameters (*)
+
+Transaction: CD9
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS                1        09H
+        LNG                  1        Number of data bytes in the transaction
+        RES                 22        Not used
+        DPVOL                1        Number of decimals in volume (0-8)
+        DPAMO                1        Number of decimals in amount (0-8)
+        DPUNP                1        Number of decimals in unit price (0-4)
+        RES                  5        Not used
+        MAMO                 4        Maximum amount
+        RES                 17        Not used
+
+MAMO is sent in packed BCD with MSB in first byte. The amount is used for delivery limit
+if CD 3 or CD 4 is not used.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+3.1.9         Set filling type (*)
+
+Transaction: CD13
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS                1        0DH
+        LNG                  1        Number of data bytes in the transaction
+        FTYPE                1        Filling type
+                                              0 = Cash filling
+                                              1 = Credit filling
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 17
+                                     CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.10        Suspend Request (*)
+
+Transaction: CD14
+
+Format:
+
+       MNEMONIC NUMBER
+                OF BYTES
+
+       TRANS              1         0EH
+       LNG                1         Number of data bytes in the transaction
+       NOZ                1         Nozzle number (0-0FH)
+
+NOZ specifies the logical nozzle number that is suspended from filling. The number is only
+used for satellite pumps and should normally be 0.
+
+This transaction is supported only by SAT pumps with full implementation of Dart.
+
+
+3.1.11        Resume Request (*)
+
+Transaction: CD15
+
+Format:
+
+       MNEMONIC NUMBER
+                OF BYTES
+
+       TRANS              1         0FH
+       LNG                1         Number of data bytes in the transaction
+       NOZ                1         Nozzle number (0-0FH)
+
+NOZ specifies the logical nozzle number that is resumed for filling. The number is only used
+for satellite pumps and should normally be 0.
+
+This transaction is supported only by SAT pumps with full implementation of Dart.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 18
+                               CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.1.12        Request Total Counters (*)
+
+Transaction: CD101
+
+Format:
+
+       MNEMONIC NUMBER
+                OF BYTES
+
+       TRANS               1       65H
+       LNG                 1       Number of data bytes in the transaction
+       COUN                1       Total Counter number,
+                                   where COUN has meaning as de-
+                                   scribed in table below.
+                                   (Also see specification of DC101)
+
+      COUN           01H    02H       03H    04H     05H    06H    07H       08H   09H
+      Volume         LN1    LN2       LN3    LN4     LN5    LN6    LN7       LN8    LN1-8
+            st
+      Vol. 1 meter LN1      LN2       LN3    LN4     LN5    LN6    LN7       LN8   0
+      Vol. 2st meter LN1    LN2       LN3    LN4     LN5    LN6    LN7       LN8   0
+      COUN           11H    12H       13H    14H     15H    16H    17H       18H   19H
+      Amount         LN1    LN2       LN3    LN4     LN5    LN6    LN7       LN8    LN1-8
+      No. of Fill.   LN1    LN2       LN3    LN4     LN5    LN6    LN7       LN8    LN1-8
+      Not used       0      0         0      0       0      0      0         0     0
+       LN = Logical Nozzle.
+
+         This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 19
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2           Transactions from pump to site controller
+
+3.2.1         Pump status
+
+Transaction: DC1
+
+Format:
+
+          MNEMONIC NUMBER
+                   OF BYTES
+
+          TRANS             1     01H
+          LNG               1     Number of data bytes in the transaction
+          STATUS            1     Pump status
+
+This transaction is sent by the pump if the status is changed or if the pump receives the com-
+mand 'RETURN STATUS’.
+
+The pump can have the following status:
+
+      0   PUMP NOT PROGRAMMED
+      1   RESET
+      2   AUTHORIZED
+      4   FILLING
+      5   FILLING COMPLETED
+      6   MAX AMOUNT/VOLUME REACHED
+      7   SWITCHED OFF
+      8   SUSPENDED *    (fuelling point suspended)
+
+
+3.2.2         Filled volume and amount
+
+Transaction: DC2
+
+Format:
+
+          MNEMONIC NUMBER
+                   OF BYTES
+
+          TRANS             1     02H
+          LNG               1     Number of data bytes in the transaction
+          VOL               4     Filled volume
+          AMO               4     Filled amount
+
+VOL and AMO are sent in packed BCD. MSB is sent in the first byte.
+
+This transaction is sent by the pump at change of a value or if the pump receives the com-
+mand RETURN FILLING INFORMATION.
+
+
+          WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                Page 20
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.3         Nozzle status and filling price
+
+Transaction: DC3
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS               1       03H
+        LNG                 1       Number of data bytes in the transaction
+        PRI                 3       Filling price
+        NOZIO               1
+
+PRI is the price used by the pump for calculation of filled amount. It is sent in packed BCD,
+MSB first.
+
+NOZIO bits 0-3 contain selected nozzle number.
+
+NOZIO bit 4 contains nozzle in/out information.
+
+    0 = in
+    1 = out
+
+This transaction is sent by the pump if the status is changed or if the pump receives the com-
+mand 'RETURN STATUS' or ‘RETURN FILLING INFORMATION’.
+
+Example:
+
+        NOZIO Meaning
+
+           02H Nozzle 2 selected, nozzle in
+           12H Nozzle 2 selected, nozzle out
+           10H No nozzle selected, nozzle out. (This is possible for a blending pump.)
+
+There must never be more than one selected logical nozzle number. If two nozzles are taken
+out simultaneously, the pump determines which logical nozzle number is selected. The site
+controller will use the last received logical nozzle number.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 21
+                                 CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.4         Alarm Code (*)
+
+Transaction: DC5
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS             1       05H
+        LNG               1       Number of data bytes in the transaction
+        ALARM             1       Alarm code
+                                        01H CPU reset
+                                        03H RAM error
+                                        04H PROM checksum error
+                                        06H Pulser error
+                                        07H Pulser current error
+                                        09H Emergency stop
+                                        0AH Power failure
+                                        0BH Pressure lost
+                                        0CH Blend ratio error
+                                        0DH Low leak error
+                                        0EH High leak error
+                                        0FH Hose leak error
+                                        10H VR monitor, error reset
+                                        11H VR monitor, 10 consecutive errors
+                                        12H VR monitor, shut down pump
+                                        13H VR monitor, internal error
+                                        14H RESERVED
+                                        15H RESERVED
+                                        16H RESERVED
+                                        17H RESERVED
+                                        18H RESERVED
+                                        19H VR control error
+                                        20H VR control error consecutive
+
+This transaction is sent by the pump if an alarm is generated or if the pump receives the com-
+mand 'RETURN STATUS'.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 22
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.5         Pump Parameters (*)
+
+Transaction: DC7
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS              1     07H
+        LNG                1     Number of data bytes in the transaction
+        RES               22     Not used
+        DPVOL              1     Number of decimals in volume (0-8)
+        DPAMO              1     Number of decimals in amount (0-8)
+        DPUNP              1     Number of decimals in unit price (0-4)
+        RES                5     Not used
+        MAMO               4     Maximum amount
+        RES                2     Not used
+        GRADE             15     Existing grade per nozzle number
+
+MAMO is sent in packed BCD with MSB in first byte.
+
+This transaction is sent by the pump if SET PUMP PARAMETERS is received or if the pump
+receives the command 'RETURN PUMP PARAMETERS'.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+3.2.6         Pump identity
+
+Transaction: DC9
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS             1      09H
+        LNG               1      Number of data bytes in the transaction
+        PID               5      Pump identity.
+
+PID is sent in packed BCD, MSB first.
+
+The pump sends this transaction if command ‘RETURN PUMP IDENTITY’ is received.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 23
+                               CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.7         Suspend Reply (*)
+
+Transaction: DC14
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS             1        0EH
+        LNG               1        Number of data bytes in the transaction
+        NOZ               1        Nozzle number (from request).
+
+The pump sends this transaction if SUSPEND REQUEST is received.
+
+This transaction is supported only by SAT pumps with full implementation of Dart.
+
+
+3.2.8         Resume Reply (*)
+
+Transaction: DC15
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS             1        0FH
+        LNG               1        Number of data bytes in the transaction
+        NOZ               1        Nozzle number (from request).
+
+The pump sends this transaction if RESUME REQUEST is received.
+
+This transaction is supported only by SAT pumps with full implementation of Dart.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 24
+                                  CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.9         Total Counters (*)
+
+Transaction: DC101
+
+Format:
+
+        MNEMONIC NUMBER
+                 OF BYTES
+
+        TRANS              1        65H
+        LNG                1        Number of data bytes in the transaction
+        COUN               1        Logical Nozzle number
+                                    01H-09H and 11H-19H
+        TOTVAL             5        COUN = 01H-08H: Volume Totals for logical nozzle.
+                                    COUN = 09H: LN1-8 Volume (sum of all logical nozzle
+                                    volume totals).
+                                    COUN = 11H-18H: Amount Totals for logical nozzle.
+                                    COUN = 19H: LN1-8 Amount (sum of all logical nozzle
+                                    amount totals) .
+        TOTM1 /            5        COUN = 01H-08H: Primary meter Volume totals for logi-
+        NOFILL                      cal nozzle.
+                                    COUN = 09H: Not used shall be zero (0).
+                                    COUN = 11H-18H: Number of fillings for logical nozzle.
+                                    COUN = 19H: Total no of fillings for whole pump.
+        TOTM2              5        COUN = 01H-08H: Secondary meter Volume totals for
+                                    logical nozzle.
+                                    COUN = 09H: Not used shall be zero (0).
+                                    COUN = 11H-19H: Not used and shall be zero (0).
+
+Total counters are sent as packed BCD format with MSB first.
+
+The pump sends this transaction if Request Total Counters is received.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 25
+                                   CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.10        IFSF Stand Alone Mode (*)
+
+Transaction: DC102
+
+Format:
+
+       MNEMONIC NUMBER
+                OF BYTES
+
+       TRANS              1      66H
+       LNG                1      Number of data bytes in the transaction
+       MODE               1      IFSF mode.
+                                 00H = Stand Alone Disabled
+                                 01H = Stand Alone Enabled
+       LOCA               1      Local Authorise
+                                 00H = Button has not been pressed
+                                 01H = Button has been pressed
+
+The message is used to inform ISFS-converter if pump is operating in Stand Alone or not and
+if the Local Authorise button has been pressed.
+
+Pump will send this message only if configured to do so (parameter in pump). If the pump is
+configured to send this message it sends it on status change of any of the two parameters
+(MODE and LOCA). The message will also be sent when system requests pump parameters
+(DC1= 02H).
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 26
+                               CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+3.2.11        Pump Unit Prices (*)
+
+Transaction: DC103
+
+Format:
+
+       MNEMONIC NUMBER
+                OF BYTES
+
+       TRANS               1         67H
+       LNG                 1         Number of data bytes in the transaction
+       PRI1                3         Price
+        :
+       PRIn                3
+
+The message is used to inform ISFS-converter of current pump prices when operating in IFSF
+Stand Alone Mode.
+
+Pump will send this message only if configured to do so (parameter in pump). The pump send
+this message as response to command 0FH (RETURN PRICES OF ALL CURRENT
+GRADES) in CD1.
+
+This transaction is supported only by pumps with full implementation of Dart.
+
+
+
+
+         WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                               Page 27
+                               CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+4             EXAMPLES
+
+4.1           Clear display when customer pays
+
+Pump display is cleared when the customer pays the filling. Authorize is made when next
+customer takes out a nozzle or selects a grade.
+
+   Transaction
+To disp. To cen- Comment
+            tral
+
+                     The pump is in status FILLING COMPLETE.
+    CD1              Command RESET, the customer has paid.
+              DC1    Status RESET.
+                     Next customer arrives.
+              DC3    Grade selected.
+    CD2              Allowed nozzle numbers. Only needed if different from previous filling.
+    CD3              Preset volume. Note that preset values are set to default by the command
+                     RESET.
+    CD1              Command AUTHORIZE.
+              DC1    Status AUTHORIZED.
+              DC3    Nozzle out.
+              DC1    Status FILLING.
+              DC2    Filled volume and amount.
+               :
+              DC2
+              DC3    Nozzle in.
+              DC1    Status FILLING COMPLETE.
+
+
+
+
+          WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                                Page 28
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+4.2           Clear display at start of filling
+
+Pump display is cleared when a filling is started. Authorize is made when the customer pays
+the filling.
+
+   Transaction
+To disp. To central Comment
+
+                        The pump is in status FILLING COMPLETE.
+                        Next customer arrives.
+                  DC3   Nozzle out.
+  CD1                   Command RESET.
+                        The pump clears the display.
+                  DC1   Status RESET.
+  CD1                   Command AUTHORIZE.
+                  DC1   Status AUTHORIZED.
+                  DC1   Status FILLING.
+                  DC2   Filled volume and amount.
+                   :
+                  DC2
+                  DC3   Nozzle in.
+                  DC1   Status FILLING COMPLETE.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 29
+                                  CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+4.3           Price change
+
+If a pump only is working with one filling type, it is not necessary to send out prices for each
+filling. In this example is the price known first then the nozzle is taken out.
+
+   Transaction
+To disp. To cen- Comment
+            tral
+
+                     The pump is in status FILLING COMPLETE.
+                     Next customer arrives.
+              DC3    Nozzle out.
+  CD5                Price updating.
+  CD2                Allowed nozzle numbers.
+  CD1                Command RESET.
+              DC1    Status RESET.
+              DC3    Grade selected.
+  CD2                Allowed nozzle numbers. Only needed if different from previous filling.
+  CD3                Preset volume. Note that preset values must be sent after the command
+                     RESET.
+  CD1                Command AUTHORIZE.
+              DC1    Status AUTHORIZED.
+              DC1    Status FILLING.
+              DC2    Filled volume and amount.
+               :
+              DC2
+              DC3    Nozzle in.
+              DC1    Status FILLING COMPLETE.
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 30
+                                CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+5             LIMITATIONS
+
+Maximum 32 pumps
+
+Volume                         99999999
+Amount                         99999999
+Filling price                    999999
+
+Nozzle number                     1-0FH
+
+Blended products                      6
+
+Number of grades on one pump         15
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 31
+                               CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+6             Revision History
+
+
+Revision          Changes                                             WM041550 Rev
+  2.10            Initial check-in to PDM system                           01
+  2.11            Part 1.                                                  02
+                  - Added description on RESERVED and note with
+                  reference to separate application specifications.
+
+                  Par 3.
+                  - Added note on older versions
+                  - Added RESERVED application specific messages
+                  CD/DC105 to CD/DC109 (specified in separate spec-
+                  ifications)
+
+                  Part 3.2.4.
+                  - Added five RESERVED application specific alarm
+                  codes in DC5.
+                  - Added two alarm codes for VR in DC5
+
+
+
+
+        WAYNE EUROPE - Protocol Specification Dart Pump Interface Revision 2.11
+                                                                              Page 32
+                                    CONFIDENCIAL e PRIVADO
+WM041550 Rev 02
+
