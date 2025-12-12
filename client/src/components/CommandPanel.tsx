@@ -31,16 +31,38 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
     setSuccess(null);
 
     try {
-      const address = pumpAddress.startsWith('0x') 
-        ? pumpAddress 
-        : `0x${parseInt(pumpAddress, 10).toString(16).toUpperCase().padStart(2, '0')}`;
+      // Parse and validate pump address
+      let addressValue: string | number = pumpAddress;
+      
+      // If it's a hex string, keep it; if it's decimal, convert to hex
+      if (pumpAddress.match(/^[0-9]+$/)) {
+        // Pure decimal number
+        const num = parseInt(pumpAddress, 10);
+        if (num >= 80 && num <= 111) {
+          // Valid decimal range, convert to hex string
+          addressValue = `0x${num.toString(16).toUpperCase().padStart(2, '0')}`;
+        } else {
+          throw new Error(`Invalid pump address: ${pumpAddress}. Must be between 80-111 (decimal) or 0x50-0x6F (hex)`);
+        }
+      } else if (!pumpAddress.startsWith('0x') && !pumpAddress.startsWith('0X')) {
+        // Try to parse as hex without prefix
+        const num = parseInt(pumpAddress, 16);
+        if (!isNaN(num) && num >= 0x50 && num <= 0x6F) {
+          addressValue = `0x${num.toString(16).toUpperCase().padStart(2, '0')}`;
+        } else {
+          addressValue = `0x${parseInt(pumpAddress, 10).toString(16).toUpperCase().padStart(2, '0')}`;
+        }
+      } else {
+        // Already has 0x prefix, use as-is
+        addressValue = pumpAddress.toUpperCase();
+      }
 
       const request: SendCommandRequest = {
         command: {
           type: commandType,
           data: commandData
         },
-        pumpAddress: address
+        pumpAddress: addressValue
       };
 
       const response = await api.sendCommand(request);
@@ -103,14 +125,17 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
       <h2 className="card-title">Command Panel</h2>
 
       <div className="form-group">
-        <label className="label">Pump Address (Hex)</label>
+        <label className="label">Pump Address (Hex: 50-6F or Decimal: 80-111)</label>
         <input
           type="text"
           className="input"
           value={pumpAddress}
           onChange={(e) => setPumpAddress(e.target.value)}
-          placeholder="50"
+          placeholder="50 or 0x50 or 80"
         />
+        <small style={{ color: '#666', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+          Accepts: 50, 0x50, or 80 (all represent the same address)
+        </small>
       </div>
 
       {error && <div className="error">{error}</div>}

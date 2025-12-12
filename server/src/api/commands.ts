@@ -25,11 +25,26 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
         });
       }
 
-      // Validate pump address
-      const address = parseInt(pumpAddress, 16);
-      if (address < 0x50 || address > 0x6F) {
+      // Validate and parse pump address
+      let address: number;
+      
+      if (typeof pumpAddress === 'string') {
+        // Remove 0x prefix if present and parse
+        const cleanAddress = pumpAddress.replace(/^0x/i, '');
+        address = parseInt(cleanAddress, 16);
+        
+        // If hex parsing failed, try decimal
+        if (isNaN(address)) {
+          address = parseInt(pumpAddress, 10);
+        }
+      } else {
+        address = pumpAddress;
+      }
+      
+      // Validate address range
+      if (isNaN(address) || address < 0x50 || address > 0x6F) {
         return res.status(400).json({
-          error: 'Invalid pump address. Must be between 0x50 and 0x6F'
+          error: `Invalid pump address: ${pumpAddress}. Must be between 0x50 (80) and 0x6F (111)`
         });
       }
 
@@ -101,13 +116,25 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
       }
 
       // Parse pump address
-      const address = typeof pumpAddress === 'string' 
-        ? parseInt(pumpAddress, 16) 
-        : pumpAddress;
+      let address: number;
+      
+      if (typeof pumpAddress === 'string') {
+        // Remove 0x prefix if present and parse
+        const cleanAddress = pumpAddress.replace(/^0x/i, '');
+        address = parseInt(cleanAddress, 16);
+        
+        // If hex parsing failed, try decimal
+        if (isNaN(address)) {
+          address = parseInt(pumpAddress, 10);
+        }
+      } else {
+        address = pumpAddress;
+      }
 
-      if (address < 0x50 || address > 0x6F) {
+      // Validate address range
+      if (isNaN(address) || address < 0x50 || address > 0x6F) {
         return res.status(400).json({
-          error: 'Invalid pump address. Must be between 0x50 and 0x6F'
+          error: `Invalid pump address: ${pumpAddress}. Must be between 0x50 (80) and 0x6F (111)`
         });
       }
 
