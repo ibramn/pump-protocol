@@ -119,11 +119,17 @@ export class SerialHandler extends EventEmitter {
 
   /**
    * Send a complete frame to the pump
+   * For RS485 half-duplex, we need to ensure the line is clear before sending
    */
   async sendFrame(frame: number[]): Promise<void> {
     const frameHex = frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
     console.log(`[SERIAL] Sending frame (${frame.length} bytes):`, frameHex);
     await this.sendData(frame);
+    
+    // Small delay for RS485 half-duplex - allow time for transmission to complete
+    // and for the line to switch from transmit to receive mode
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     this.emit('frameSent', frame);
   }
 

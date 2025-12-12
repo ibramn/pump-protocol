@@ -161,6 +161,16 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
       <div className="command-sections">
         <section className="command-section">
           <h3>Basic Commands</h3>
+          <div style={{ 
+            padding: '10px', 
+            marginBottom: '10px', 
+            backgroundColor: '#fff3cd', 
+            border: '1px solid #ffc107', 
+            borderRadius: '4px',
+            fontSize: '0.9rem'
+          }}>
+            <strong>⚠️ Important:</strong> If pump shows "NOT PROGRAMMED", send a <strong>Price Update</strong> first, then RESET, then AUTHORIZE.
+          </div>
           <div className="button-group">
             <button
               className="button"
