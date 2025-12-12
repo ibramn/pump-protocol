@@ -70,7 +70,7 @@ export function createCommandsRouter(serialHandler: SerialHandler, wsHandler?: W
       // if needed. The working implementation sends AUTHORIZE as a simple CD1 command.
 
       // Determine control byte based on command type
-      // From sniffer logs: RESET uses CTRL=0x39, AUTHORIZE uses CTRL=0x3C
+      // From working system analysis: RESET uses CTRL=0x39, AUTHORIZE uses CTRL=0x37 (NOT 0x3C!)
       // The control byte appears to be a sequence number or transaction ID
       let controlByte = control;
       if (controlByte === undefined || controlByte === null) {
@@ -80,7 +80,7 @@ export function createCommandsRouter(serialHandler: SerialHandler, wsHandler?: W
           if (cmd === 0x05) { // RESET
             controlByte = 0x39; // From sniffer log line 770
           } else if (cmd === 0x06) { // AUTHORIZE
-            controlByte = 0x3C; // From sniffer log line 800
+            controlByte = 0x37; // From working system: usc-fuel.log shows AUTHORIZE uses CTRL=0x37
           } else {
             controlByte = 0x00; // Default for other commands
           }
