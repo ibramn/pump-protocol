@@ -84,6 +84,24 @@ export function createCommandsRouter(serialHandler: SerialHandler) {
       // Build frame (control byte defaults to 0x00 if not provided)
       const frame = buildFrame(address, control || 0x00, transactions);
 
+      // Log the command being sent for debugging
+      const commandNames: { [key: number]: string } = {
+        0x00: 'RETURN_STATUS',
+        0x05: 'RESET',
+        0x06: 'AUTHORIZE',
+        0x08: 'STOP',
+        0x0A: 'SWITCH_OFF'
+      };
+      const cmdName = transactionData.type === 1 && (transactionData.data as any).command 
+        ? commandNames[(transactionData.data as any).command] || `CMD_0x${(transactionData.data as any).command.toString(16)}`
+        : `TX_${transactionData.type}`;
+      
+      console.log(`[SEND] ${cmdName} to pump 0x${address.toString(16)}`);
+      console.log(`[SEND] Frame (${frame.length} bytes):`, frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
+      if (transactions.length > 1) {
+        console.log(`[SEND] Multiple transactions:`, transactions.map(t => `CD${t.trans} (${t.lng} bytes)`).join(', '));
+      }
+
       // Send frame
       await serialHandler.sendFrame(frame);
 

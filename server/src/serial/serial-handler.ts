@@ -121,6 +121,8 @@ export class SerialHandler extends EventEmitter {
    * Send a complete frame to the pump
    */
   async sendFrame(frame: number[]): Promise<void> {
+    const frameHex = frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    console.log(`[SERIAL] Sending frame (${frame.length} bytes):`, frameHex);
     await this.sendData(frame);
     this.emit('frameSent', frame);
   }
