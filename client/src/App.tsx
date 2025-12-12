@@ -115,11 +115,23 @@ function App() {
           // - It represents the pump's actual ready state (completed previous operation)
           // - Status 0 is just a "not programmed" state that alternates with 5 during idle
           
-          // Check if status 5 appears in recent history
+          // Check for important status transitions that should be shown immediately
+          const hasStatus1 = recentStatuses.some(e => e.status === 1); // RESET - important!
+          const hasStatus2 = recentStatuses.some(e => e.status === 2); // AUTHORIZED - important!
           const hasStatus5 = recentStatuses.some(e => e.status === 5);
           const hasStatus0 = recentStatuses.some(e => e.status === 0);
           
-          if (hasStatus5 && hasStatus0) {
+          // Priority: Status 1 (RESET) and Status 2 (AUTHORIZED) are critical transitions
+          // Show them immediately if they appear, even if other statuses are more common
+          if (hasStatus1) {
+            // RESET state - show immediately (needed for AUTHORIZE to work)
+            newState.status = 1;
+            newState.lastStatusUpdateTime = now;
+          } else if (hasStatus2) {
+            // AUTHORIZED state - show immediately (confirms AUTHORIZE worked)
+            newState.status = 2;
+            newState.lastStatusUpdateTime = now;
+          } else if (hasStatus5 && hasStatus0) {
             // Both statuses appear - this is idle keepalive behavior
             // ALWAYS prefer status 5 (more informative, represents actual ready state)
             // Ignore status 0 completely when status 5 is also present

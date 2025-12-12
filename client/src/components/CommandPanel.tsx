@@ -160,8 +160,12 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
             borderRadius: '4px',
             fontSize: '0.9rem'
           }}>
-            <strong>⚠️ Important:</strong> AUTHORIZE only works when pump is in <strong>RESET</strong> state (Status 1). 
-            Sequence: <strong>RESET</strong> → Wait for Status 1 → <strong>AUTHORIZE</strong> → Wait for Status 2.
+            <strong>⚠️ Important:</strong> 
+            <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+              <li><strong>RESET</strong> only works when pump shows <strong>Status 5</strong> (FILLING_COMPLETED). Wait for Status 5, then send RESET.</li>
+              <li><strong>AUTHORIZE</strong> only works when pump is in <strong>RESET</strong> state (Status 1). Sequence: RESET → Wait for Status 1 → AUTHORIZE → Wait for Status 2.</li>
+              <li>If pump shows "NOT PROGRAMMED" (Status 0), send <strong>Price Update</strong> first.</li>
+            </ul>
           </div>
           <div className="button-group">
             <button
