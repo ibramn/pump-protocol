@@ -155,6 +155,18 @@ The implementation follows the DART Pump Interface Protocol Specification v2.11:
 - **Application Protocol (Level 3)**: All CD and DC transactions
 - **BCD Encoding**: Proper packed BCD encoding for volumes, amounts, and prices
 
+## Firewall Configuration
+
+If your server is on a Raspberry Pi and you want to access it from another machine, you need to allow port 3001 through the firewall.
+
+### Quick Setup (UFW):
+```bash
+sudo ufw allow 3001/tcp
+sudo ufw status
+```
+
+For detailed firewall setup instructions, see [FIREWALL_SETUP.md](FIREWALL_SETUP.md)
+
 ## Troubleshooting
 
 ### Serial Port Issues
