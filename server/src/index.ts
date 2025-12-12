@@ -47,12 +47,9 @@ serialHandler.on('disconnected', () => {
   wsHandler.broadcastConnectionStatus(false);
 });
 
-// Log raw incoming data
-serialHandler.on('rawData', (data: { bytes: number[]; hex: string; length: number }) => {
-  wsHandler.broadcastLog('raw', `Raw incoming: ${data.length} bytes`, {
-    length: data.length
-  }, data.hex);
-});
+// NOTE: We don't log raw incoming bytes because they arrive in chunks from the serial port
+// and create fragmented log entries (e.g., "50 20" then "FA" instead of "50 20 FA").
+// Only complete extracted frames are logged below, which is much cleaner and more useful.
 
 // Log extracted frames
 serialHandler.on('frameExtracted', (data: { frame: number[]; hex: string; length: number }) => {
@@ -64,20 +61,6 @@ serialHandler.on('frameExtracted', (data: { frame: number[]; hex: string; length
 // Log sent frames
 serialHandler.on('frameSent', (data: { frame: number[]; hex: string; length: number }) => {
   wsHandler.broadcastLog('sent', `Frame sent: ${data.length} bytes`, {
-    length: data.length
-  }, data.hex);
-});
-
-// Log raw incoming data
-serialHandler.on('rawData', (data: { bytes: number[]; hex: string; length: number }) => {
-  wsHandler.broadcastLog('raw', `Raw incoming: ${data.length} bytes`, {
-    length: data.length
-  }, data.hex);
-});
-
-// Log extracted frames
-serialHandler.on('frameExtracted', (data: { frame: number[]; hex: string; length: number }) => {
-  wsHandler.broadcastLog('frame', `Frame extracted: ${data.length} bytes`, {
     length: data.length
   }, data.hex);
 });

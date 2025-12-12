@@ -181,19 +181,9 @@ export class SerialHandler extends EventEmitter {
   private handleData(data: Buffer): void {
     const newBytes = Array.from(data);
     
-    // Skip logging heartbeat/keepalive patterns
-    if (!this.isHeartbeatData(newBytes)) {
-      // Log raw incoming bytes for debugging (excluding heartbeats)
-      const rawHex = newBytes.map((b: number) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-      console.log(`[RAW INCOMING] ${data.length} bytes:`, rawHex);
-      
-      // Emit raw data event for logging
-      this.emit('rawData', {
-        bytes: newBytes,
-        hex: rawHex,
-        length: data.length
-      });
-    }
+    // NOTE: We don't log raw incoming bytes because they arrive in chunks
+    // and create fragmented log entries. Instead, we only log complete extracted frames.
+    // Raw byte chunks are not useful for debugging - complete frames are what matter.
     
     // Add new bytes to buffer (always buffer, even heartbeats, for frame extraction)
     this.byteBuffer.push(...newBytes);

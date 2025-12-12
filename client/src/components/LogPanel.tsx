@@ -158,18 +158,17 @@ export function LogPanel({ logs, onClear, paused: externalPaused, onPauseChange 
           <div className="log-empty">No logs to display</div>
         ) : filter === 'hex' ? (
           // Hex-only view: show just timestamp and hex data, no decoding
-          filteredLogs.map((log) => (
-            <div key={log.id} className="log-entry-hex">
-              <div className="log-hex-header">
-                <span className="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                {log.hex ? (
+          // Show all logs that have hex data (frames, sent, decoded, and raw)
+          filteredLogs
+            .filter(log => log.hex) // Only show logs that have hex data
+            .map((log) => (
+              <div key={log.id} className="log-entry-hex">
+                <div className="log-hex-header">
+                  <span className="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</span>
                   <code className="log-hex-only">{log.hex}</code>
-                ) : (
-                  <span className="log-no-hex">No hex data</span>
-                )}
+                </div>
               </div>
-            </div>
-          ))
+            ))
         ) : (
           filteredLogs.map((log) => (
             <div key={log.id} className={`log-entry ${getLogColor(log.type)}`}>
