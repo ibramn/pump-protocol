@@ -34,24 +34,67 @@ function App() {
   const handlePumpMessage = (data: any) => {
     // Update pump state based on transaction type
     setPumpState((prev) => {
+      // Start with previous state or defaults
       const newState: PumpState = {
         address: data.address,
-        status: prev?.status || 0,
-        lastUpdate: new Date(data.timestamp)
+        status: prev?.status ?? 0,
+        lastUpdate: new Date(data.timestamp),
+        ...prev // Preserve all previous fields
       };
 
       // Process transactions in order - later transactions in the same frame override earlier ones
       // This handles frames with multiple transactions (e.g., DC1 + DC3 together)
       switch (data.transaction.type) {
         case 1: // DC1_PUMP_STATUS
-          // Update status - but only if it's actually different to avoid flickering
           const newStatus = data.transaction.data.status;
-          // Only update if status actually changed (not just a duplicate message)
-          if (prev?.status !== newStatus) {
-            newState.status = newStatus;
+          const now = Date.now();
+          
+          // Initialize status history if needed
+          if (!newState.statusHistory) {
+            newState.statusHistory = [];
+          }
+          
+          // Add this status to history (keep last 10 entries)
+          newState.statusHistory.push({ status: newStatus, timestamp: now });
+          if (newState.statusHistory.length > 10) {
+            newState.statusHistory.shift();
+          }
+          
+          // Check if status has been consistent for at least 1 second
+          // This prevents rapid switching between statuses
+          const recentStatuses = newState.statusHistory.filter(
+            entry => now - entry.timestamp < 2000 // Last 2 seconds
+          );
+          
+          // Count occurrences of each status in recent history
+          const statusCounts = new Map<number, number>();
+          recentStatuses.forEach(entry => {
+            statusCounts.set(entry.status, (statusCounts.get(entry.status) || 0) + 1);
+          });
+          
+          // Find the most common status in recent history
+          let mostCommonStatus = newStatus;
+          let maxCount = 0;
+          statusCounts.forEach((count, status) => {
+            if (count > maxCount) {
+              maxCount = count;
+              mostCommonStatus = status;
+            }
+          });
+          
+          // Only update if:
+          // 1. The most common recent status is different from current, AND
+          // 2. It appears at least 3 times in recent history (stable)
+          if (prev?.status !== mostCommonStatus && maxCount >= 3) {
+            newState.status = mostCommonStatus;
+            newState.lastStatusUpdateTime = now;
+            console.log('Status updated (stable):', prev?.status, '->', mostCommonStatus, `(${maxCount} occurrences in last 2s)`);
           } else {
-            // Status unchanged, keep previous
-            newState.status = prev?.status || newStatus;
+            // Keep current status - either it's the same or not stable enough
+            newState.status = prev?.status ?? newStatus;
+            if (prev?.status !== newStatus && maxCount < 3) {
+              console.log('Status change ignored (unstable):', prev?.status, '->', newStatus, `(only ${maxCount} occurrences)`);
+            }
           }
           break;
         case 2: // DC2_FILLED_VOLUME_AMOUNT
@@ -73,7 +116,7 @@ function App() {
           break;
       }
 
-      return { ...prev, ...newState };
+      return newState;
     });
 
     // Add to transaction log

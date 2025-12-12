@@ -15,6 +15,8 @@ export class SerialHandler extends EventEmitter {
   private byteBuffer: number[] = [];
   private config: SerialConfig;
   private isConnected: boolean = false;
+  private lastAckTime: Map<PumpAddress, number> = new Map(); // Track last ACK time per address
+  private ackThrottleMs: number = 1000; // Minimum time between ACKs (1 second)
 
   constructor(config: SerialConfig) {
     super();
@@ -144,6 +146,48 @@ export class SerialHandler extends EventEmitter {
   }
 
   /**
+   * Send acknowledgment frame to pump
+   * Some DART implementations may require ACK frames to confirm receipt
+   * This sends a RETURN STATUS command as acknowledgment
+   * 
+   * NOTE: Rate-limited to prevent acknowledgment loops
+   */
+  private async sendAcknowledgment(address: PumpAddress): Promise<void> {
+    try {
+      // Rate limit: Don't send ACK if we sent one recently (within throttle period)
+      const now = Date.now();
+      const lastAck = this.lastAckTime.get(address) || 0;
+      const timeSinceLastAck = now - lastAck;
+      
+      if (timeSinceLastAck < this.ackThrottleMs) {
+        // Too soon since last ACK, skip this one
+        return;
+      }
+      
+      // Update last ACK time
+      this.lastAckTime.set(address, now);
+      
+      // Send RETURN STATUS (CD1 with command 0x00) as acknowledgment
+      // This tells the pump we received its message and are requesting status
+      const { encodeCommandTransaction } = require('../protocol/encoder');
+      const { buildFrame } = require('../protocol/line-protocol');
+      
+      const transaction = encodeCommandTransaction({
+        type: 1, // CD1
+        data: {
+          command: 0 // RETURN STATUS
+        }
+      });
+      
+      const ackFrame = buildFrame(address, 0x00, [transaction]);
+      await this.sendFrame(ackFrame);
+      console.log(`[ACK] Sent acknowledgment to pump 0x${address.toString(16)} (throttled: ${timeSinceLastAck}ms since last)`);
+    } catch (error) {
+      console.error('Failed to send acknowledgment:', error);
+    }
+  }
+
+  /**
    * Process a complete frame
    */
   private processFrame(frame: number[]): void {
@@ -173,15 +217,31 @@ export class SerialHandler extends EventEmitter {
     
     if (patternDecoded.length > 0) {
       // Pattern match succeeded - emit all decoded transactions
+      const timestamp = new Date();
+      let shouldAck = false;
+      
       for (const decoded of patternDecoded) {
         const message: DecodedMessage = {
           address,
-          timestamp: new Date(),
+          timestamp,
           transaction: decoded,
           rawFrame: frame
         };
         this.emit('message', message);
+        
+        // Status frames might need acknowledgment
+        if (decoded.type === 1) {
+          shouldAck = true;
+        }
       }
+      
+      // Send acknowledgment for status frames
+      if (shouldAck) {
+        setTimeout(() => {
+          this.sendAcknowledgment(address).catch(console.error);
+        }, 50);
+      }
+      
       return;
     }
 
@@ -192,6 +252,9 @@ export class SerialHandler extends EventEmitter {
       // Decode all transactions in the frame and emit them together
       // Use a single timestamp for all transactions in the same frame
       const timestamp = new Date();
+      
+      // Track if we should send acknowledgment
+      let shouldAck = false;
       
       for (const transaction of parsedFrame.transactions) {
         const txDecoded = decodeResponseTransaction(transaction);
@@ -204,6 +267,12 @@ export class SerialHandler extends EventEmitter {
             rawFrame: frame
           };
           this.emit('message', message);
+          
+          // Some transaction types might require acknowledgment
+          // DC1 (status) and DC3 (nozzle/price) are commonly acknowledged
+          if (txDecoded.type === 1 || txDecoded.type === 3) {
+            shouldAck = true;
+          }
         } else {
           // Unknown transaction type - log but don't error
           console.log('Unknown transaction type:', transaction.trans, 'Length:', transaction.lng);
@@ -214,6 +283,15 @@ export class SerialHandler extends EventEmitter {
           });
         }
       }
+      
+      // Send acknowledgment if needed (some pumps require this to stop rapid status switching)
+      // Rate-limited to prevent acknowledgment loops
+      if (shouldAck) {
+        setTimeout(() => {
+          this.sendAcknowledgment(parsedFrame.address).catch(console.error);
+        }, 100); // Small delay to avoid immediate response
+      }
+      
       return;
     }
 

@@ -72,5 +72,7 @@ export interface PumpState {
   price?: number;
   identity?: string;
   lastUpdate: Date;
+  lastStatusUpdateTime?: number; // Timestamp of last status update (for debouncing)
+  statusHistory?: { status: PumpStatus; timestamp: number }[]; // Track recent status changes
 }
 

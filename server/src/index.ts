@@ -47,6 +47,9 @@ serialHandler.on('disconnected', () => {
   wsHandler.broadcastConnectionStatus(false);
 });
 
+// Track last status to detect rapid switching
+let lastStatus: { address: number; status: number; timestamp: number } | null = null;
+
 serialHandler.on('message', (message) => {
   // Log with transaction type name for clarity
   const txNames: { [key: number]: string } = {
@@ -57,12 +60,36 @@ serialHandler.on('message', (message) => {
   };
   const txName = txNames[message.transaction.type] || `DC${message.transaction.type}`;
   
-  console.log(`[${txName}]`, {
-    address: `0x${message.address.toString(16)}`,
-    data: message.transaction.data,
-    frameLength: message.rawFrame.length,
-    rawHex: message.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
-  });
+  // For status messages, check if we're getting rapid status switches
+  if (message.transaction.type === 1) {
+    const status = message.transaction.data.status;
+    const now = Date.now();
+    
+    if (lastStatus && 
+        lastStatus.address === message.address && 
+        lastStatus.status !== status) {
+      const timeSinceLastStatus = now - lastStatus.timestamp;
+      if (timeSinceLastStatus < 1000) {
+        console.warn(`⚠️  Rapid status switch detected: ${lastStatus.status} -> ${status} (${timeSinceLastStatus}ms apart)`);
+      }
+    }
+    
+    lastStatus = {
+      address: message.address,
+      status: status,
+      timestamp: now
+    };
+  }
+  
+  // Only log every 10th message to reduce console spam
+  if (Math.random() < 0.1) {
+    console.log(`[${txName}]`, {
+      address: `0x${message.address.toString(16)}`,
+      data: message.transaction.data,
+      frameLength: message.rawFrame.length
+    });
+  }
+  
   wsHandler.broadcastPumpMessage(message);
 });
 
