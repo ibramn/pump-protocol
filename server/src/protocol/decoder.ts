@@ -35,14 +35,28 @@ export function decodeBCD(bytes: number[]): number {
 
 /**
  * Decode 3-byte BCD price
+ * Price format: Packed BCD, 6 digits total
+ * 
+ * Based on observed behavior: price showing 0.2180 should be 2.180
+ * This means: if BCD value is 2180, divide by 1000 to get 2.180
+ * 
+ * Example: 2.18 SAR/L stored as 021800 in BCD
+ * After BCD decode: 21800, then divide by 10000 = 2.18
+ * 
+ * But if showing 0.2180, the BCD value is likely 2180, so divide by 1000 = 2.180
+ * 
+ * Actually, if it's showing 0.2180 and should be 2.180, that's 10x off.
+ * So if current code divides by 10000 and shows 0.2180, the value is 2180.
+ * To get 2.180, we need to divide by 1000.
  */
 export function decodePrice(bytes: number[]): number {
   if (bytes.length !== 3) {
     return 0;
   }
   const value = decodeBCD(bytes);
-  // Price is stored as integer with 4 decimal places (e.g., 21800 = 2.1800)
-  return value / 10000;
+  // If showing 0.2180 but should be 2.180, the value is 2180
+  // Divide by 1000 to get 2.180 (not 10000 which gives 0.2180)
+  return value / 1000;
 }
 
 /**
@@ -106,7 +120,19 @@ export function decodeResponseTransaction(transaction: Transaction): ResponseTra
 
     case ResponseTransaction.DC3_NOZZLE_STATUS_FILLING_PRICE:
       if (data.length < 4) return null;
-      const price = decodePrice(data.slice(0, 3));
+      
+      // Price is 3 bytes BCD, but validate it's in reasonable range
+      const priceBytes = data.slice(0, 3);
+      const price = decodePrice(priceBytes);
+      
+      // Validate price is in realistic range (0.5 - 10.0 SAR/L)
+      // If price is too low (< 0.5) or too high (> 10.0), it might not be a price
+      // Some frames might have other data in this position
+      if (price < 0.5 || price > 10.0) {
+        // Likely not a valid price, return null to avoid false positives
+        return null;
+      }
+      
       const nozio = data[3];
       const nozzle = nozio & 0x0F;
       const nozzleOut = (nozio & 0x10) !== 0;

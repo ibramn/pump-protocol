@@ -156,6 +156,17 @@ export class SerialHandler extends EventEmitter {
       return;
     }
 
+    // Skip heartbeat frames (small frames with repeating patterns)
+    if (frame.length < 6) {
+      return;
+    }
+    
+    // Check for heartbeat pattern (all bytes are 0x50, 0x51, 0x20, 0x70, 0xFA)
+    const body = frame.slice(0, -2);
+    if (body.every(x => [0x50, 0x51, 0x20, 0x70, 0xFA].includes(x))) {
+      return; // Skip heartbeat
+    }
+
     // First, try pattern-based decoding (like Python decoder)
     let decoded = tryDecodeFrameByPattern(frame);
     
@@ -199,9 +210,15 @@ export class SerialHandler extends EventEmitter {
       return;
     }
 
-    // If both methods fail, log as unknown frame (but don't error)
-    console.log('Unknown frame pattern, length:', frame.length, 'hex:', 
-                frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
+    // If both methods fail, log for debugging (can be disabled later)
+    // This helps identify frames that don't match expected patterns
+    const frameHex = frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    console.log('Unrecognized frame:', {
+      length: frame.length,
+      address: `0x${address.toString(16)}`,
+      hex: frameHex,
+      bytes: frame
+    });
   }
 
   /**

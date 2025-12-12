@@ -26,25 +26,73 @@ function decodeBCD(bytes: number[]): number {
 
 /**
  * Check if frame matches status frame pattern: PP CC 01 01 XX CRC 03 FA
+ * Where PP is pump address (0x50-0x6F), CC is command, XX is status byte
  */
 export function isStatusFrame(frame: number[]): boolean {
   if (frame.length !== 9) {
     return false;
   }
-  return frame[2] === 0x01 && frame[3] === 0x01 && 
+  // Check pattern: bytes 2-3 should be 0x01 0x01, last two should be 0x03 0xFA
+  // Also verify pump address is in valid range
+  const address = frame[0];
+  return address >= 0x50 && address <= 0x6F &&
+         frame[2] === 0x01 && frame[3] === 0x01 && 
          frame[frame.length - 2] === 0x03 && 
          frame[frame.length - 1] === 0xFA;
 }
 
 /**
  * Decode status frame
+ * Format: PP CC 01 01 STATUS CRC 03 FA
+ * 
+ * According to DART spec:
+ * - ADR (PP) = Pump address
+ * - CTRL (CC) = Control byte
+ * - TRANS = 0x01 (DC1)
+ * - LNG = 0x01 (1 byte of data)
+ * - DATA = STATUS byte (0-8)
+ * - CRC-1, CRC-2 = CRC checksum
+ * - ETX = 0x03, SF = 0xFA
  */
 export function decodeStatusFrame(frame: number[]): ResponseTransactionData | null {
   if (!isStatusFrame(frame)) {
     return null;
   }
   
-  const status = frame[4] as PumpStatus;
+  // Verify frame structure matches DART spec exactly
+  // Position 0: ADR (pump address)
+  // Position 1: CTRL (control)
+  // Position 2: TRANS = 0x01 (DC1)
+  // Position 3: LNG = 0x01 (1 byte)
+  // Position 4: STATUS byte
+  // Position 5-6: CRC
+  // Position 7-8: ETX (0x03), SF (0xFA)
+  
+  if (frame[2] !== 0x01 || frame[3] !== 0x01) {
+    // Doesn't match DC1 transaction pattern
+    return null;
+  }
+  
+  // Status byte is at position 4 (after PP, CC, 01, 01)
+  const statusByte = frame[4];
+  
+  // Validate status byte is in expected range (0-8 per DART spec)
+  // 0 = PUMP NOT PROGRAMMED
+  // 1 = RESET
+  // 2 = AUTHORIZED
+  // 4 = FILLING
+  // 5 = FILLING COMPLETED
+  // 6 = MAX AMOUNT/VOLUME REACHED
+  // 7 = SWITCHED OFF
+  // 8 = SUSPENDED
+  if (statusByte > 8) {
+    // Invalid status, might not be a status frame
+    console.log('Invalid status byte:', statusByte, 'in frame:', 
+                frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
+    return null;
+  }
+  
+  const status = statusByte as PumpStatus;
   return {
     type: 1, // DC1_PUMP_STATUS
     data: { status }
@@ -124,9 +172,25 @@ export function decodeFuelingWithExtraFrame(frame: number[]): ResponseTransactio
 }
 
 /**
+ * Check if frame is a heartbeat (should be skipped)
+ */
+export function isHeartbeatFrame(frame: number[]): boolean {
+  if (frame.length < 6) {
+    return true;
+  }
+  const body = frame.slice(0, -2); // Exclude ETX and SF
+  return body.every(x => [0x50, 0x51, 0x20, 0x70, 0xFA].includes(x));
+}
+
+/**
  * Try to decode frame using pattern matching (like Python decoder)
  */
 export function tryDecodeFrameByPattern(frame: number[]): ResponseTransactionData | null {
+  // Skip heartbeat frames
+  if (isHeartbeatFrame(frame)) {
+    return null;
+  }
+  
   // Try different frame patterns in order of likelihood
   
   if (isFuelingWithExtraFrame(frame)) {

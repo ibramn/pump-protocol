@@ -48,14 +48,31 @@ serialHandler.on('disconnected', () => {
 });
 
 serialHandler.on('message', (message) => {
-  console.log('Received pump message:', message.transaction.type);
+  console.log('Received pump message:', {
+    type: message.transaction.type,
+    address: `0x${message.address.toString(16)}`,
+    data: message.transaction.data,
+    rawFrame: message.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+  });
   wsHandler.broadcastPumpMessage(message);
 });
 
 serialHandler.on('frameError', (error) => {
   // Log frame errors but don't treat them as fatal
   // Many frames may not parse correctly but still contain valid data
-  console.warn('Frame parsing warning:', error.error, 'Frame length:', error.frame.length);
+  const frameHex = error.frame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  console.warn('Frame parsing warning:', error.error, 'Frame length:', error.frame.length, 'Hex:', frameHex);
+});
+
+serialHandler.on('unknownTransaction', (data) => {
+  const frameHex = data.rawFrame.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  console.log('Unknown transaction:', {
+    address: `0x${data.address.toString(16)}`,
+    transaction: data.transaction.trans,
+    length: data.transaction.lng,
+    data: data.transaction.data.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '),
+    frameHex
+  });
 });
 
 serialHandler.on('error', (error) => {

@@ -128,7 +128,7 @@ export function parseFrame(frame: number[]): Frame | null {
   }
 
   // Extract transactions (skip ADR, CTRL, and trailing CRC-1, CRC-2, ETX, SF)
-  // Note: Some frames may not follow strict protocol structure, so we're lenient
+  // According to DART spec: ADR CTRL TRANS LNG DATA... CRC-1 CRC-2 ETX SF
   const transactions: Transaction[] = [];
   let pos = 2; // Start after ADR and CTRL
 
@@ -142,19 +142,17 @@ export function parseFrame(frame: number[]): Frame | null {
     
     // Validate length is reasonable (0-255)
     if (lng < 0 || lng > 255) {
-      // Invalid length, try to find next transaction or break
-      pos++;
-      continue;
+      // Invalid length - this might not be a valid protocol frame
+      // Log for debugging
+      console.log('Invalid transaction length:', lng, 'at position:', pos, 'in frame');
+      break;
     }
     
     // Check if we have enough bytes for the data
     if (pos + 2 + lng > frame.length - 4) {
-      // Not enough data - might be incomplete frame, but try to extract what we can
-      const availableData = frame.slice(pos + 2, frame.length - 4);
-      if (availableData.length > 0) {
-        transactions.push({ trans, lng: availableData.length, data: availableData });
-      }
-      break; // Can't continue
+      // Not enough data - incomplete frame
+      console.log('Incomplete transaction: need', lng, 'bytes but only have', frame.length - 4 - pos - 2);
+      break;
     }
 
     const data = frame.slice(pos + 2, pos + 2 + lng);
@@ -163,17 +161,10 @@ export function parseFrame(frame: number[]): Frame | null {
     pos += 2 + lng; // Move to next transaction
   }
   
-  // If no transactions were found but frame looks valid, create a raw transaction
-  // This handles frames that don't follow the exact protocol structure
+  // Debug: Log if we couldn't parse any transactions
   if (transactions.length === 0 && frame.length >= 8) {
-    // Extract all data between ADR/CTRL and CRC/ETX/SF as a single transaction
-    const rawData = frame.slice(2, frame.length - 4);
-    if (rawData.length > 0) {
-      // Try to interpret first byte as transaction type
-      const trans = rawData[0];
-      const data = rawData.slice(1);
-      transactions.push({ trans, lng: data.length, data });
-    }
+    console.log('No transactions parsed from frame. Raw data:', 
+                frame.slice(2, frame.length - 4).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
   }
 
   // Extract CRC (but don't validate - matching Python decoder behavior)

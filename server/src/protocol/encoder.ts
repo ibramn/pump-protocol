@@ -46,12 +46,13 @@ export function encodeBCD(value: number, bytes: number): number[] {
 
 /**
  * Encode price to 3-byte packed BCD
- * Price format: up to 6 digits (e.g., 2.18 = 000218)
+ * Price format: 6 digits total
+ * Example: 2.18 SAR/L -> 2180 (multiply by 1000) -> encode as BCD
  */
 export function encodePrice(price: number): number[] {
-  // Convert price to integer (e.g., 2.18 -> 21800 for 2.1800)
-  // Assuming 4 decimal places: 2.18 = 21800
-  const priceInt = Math.round(price * 10000);
+  // Convert price to integer (e.g., 2.18 -> 2180)
+  // Multiply by 1000 to match decodePrice which divides by 1000
+  const priceInt = Math.round(price * 1000);
   return encodeBCD(priceInt, 3);
 }
 

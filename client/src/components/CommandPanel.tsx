@@ -34,27 +34,33 @@ export function CommandPanel({ onCommandSent }: CommandPanelProps) {
       // Parse and validate pump address
       let addressValue: string | number = pumpAddress;
       
-      // If it's a hex string, keep it; if it's decimal, convert to hex
-      if (pumpAddress.match(/^[0-9]+$/)) {
-        // Pure decimal number
-        const num = parseInt(pumpAddress, 10);
-        if (num >= 80 && num <= 111) {
-          // Valid decimal range, convert to hex string
-          addressValue = `0x${num.toString(16).toUpperCase().padStart(2, '0')}`;
-        } else {
-          throw new Error(`Invalid pump address: ${pumpAddress}. Must be between 80-111 (decimal) or 0x50-0x6F (hex)`);
+      // Remove whitespace
+      const cleanAddress = pumpAddress.trim();
+      
+      if (cleanAddress.startsWith('0x') || cleanAddress.startsWith('0X')) {
+        // Already has hex prefix
+        const num = parseInt(cleanAddress, 16);
+        if (isNaN(num) || num < 0x50 || num > 0x6F) {
+          throw new Error(`Invalid pump address: ${cleanAddress}. Must be between 0x50-0x6F (hex) or 80-111 (decimal)`);
         }
-      } else if (!pumpAddress.startsWith('0x') && !pumpAddress.startsWith('0X')) {
-        // Try to parse as hex without prefix
-        const num = parseInt(pumpAddress, 16);
-        if (!isNaN(num) && num >= 0x50 && num <= 0x6F) {
-          addressValue = `0x${num.toString(16).toUpperCase().padStart(2, '0')}`;
+        addressValue = `0x${num.toString(16).toUpperCase().padStart(2, '0')}`;
+      } else if (cleanAddress.match(/^[0-9A-Fa-f]+$/)) {
+        // Hex-like string (digits and A-F), try hex first
+        const hexNum = parseInt(cleanAddress, 16);
+        if (!isNaN(hexNum) && hexNum >= 0x50 && hexNum <= 0x6F) {
+          // Valid hex in range
+          addressValue = `0x${hexNum.toString(16).toUpperCase().padStart(2, '0')}`;
         } else {
-          addressValue = `0x${parseInt(pumpAddress, 10).toString(16).toUpperCase().padStart(2, '0')}`;
+          // Try as decimal
+          const decNum = parseInt(cleanAddress, 10);
+          if (!isNaN(decNum) && decNum >= 80 && decNum <= 111) {
+            addressValue = `0x${decNum.toString(16).toUpperCase().padStart(2, '0')}`;
+          } else {
+            throw new Error(`Invalid pump address: ${cleanAddress}. Must be between 0x50-0x6F (hex) or 80-111 (decimal)`);
+          }
         }
       } else {
-        // Already has 0x prefix, use as-is
-        addressValue = pumpAddress.toUpperCase();
+        throw new Error(`Invalid pump address format: ${cleanAddress}. Use hex (50, 0x50) or decimal (80)`);
       }
 
       const request: SendCommandRequest = {

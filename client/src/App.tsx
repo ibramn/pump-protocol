@@ -42,7 +42,16 @@ function App() {
 
       switch (data.transaction.type) {
         case 1: // DC1_PUMP_STATUS
-          newState.status = data.transaction.data.status;
+          // Only update status if it's actually a status frame
+          // Avoid rapid switching by checking if status actually changed
+          const newStatus = data.transaction.data.status;
+          if (prev?.status !== newStatus) {
+            newState.status = newStatus;
+            console.log('Status changed:', prev?.status, '->', newStatus);
+          } else {
+            // Status unchanged, keep previous
+            newState.status = prev?.status || newStatus;
+          }
           break;
         case 2: // DC2_FILLED_VOLUME_AMOUNT
           newState.volume = data.transaction.data.volume;
@@ -51,7 +60,12 @@ function App() {
         case 3: // DC3_NOZZLE_STATUS_FILLING_PRICE
           newState.nozzle = data.transaction.data.nozzle;
           newState.nozzleOut = data.transaction.data.nozzleOut;
-          newState.price = data.transaction.data.price;
+          // Only update price if it's in valid range (0.5 - 10.0 SAR/L)
+          const price = data.transaction.data.price;
+          if (price && price >= 0.5 && price <= 10.0) {
+            newState.price = price;
+          }
+          // If price is invalid, don't update it (keep previous or undefined)
           break;
         case 9: // DC9_PUMP_IDENTITY
           newState.identity = data.transaction.data.identity;
